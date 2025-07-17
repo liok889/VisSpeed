@@ -1,0 +1,306 @@
+<html>
+<head>
+    <title>VisSpeed Experiment</title>
+    <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.16.0/d3.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+
+    <!-- Load experiment scripts -->
+    <script src="visspeed.js"></script>
+    <script src="controller.js"></script>
+
+    <style>
+        body {
+            font-family: sans-serif;
+            font-size: 16px;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        #prompt {
+            text-align: center;
+            font-size: 20px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        #experimentContainer {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #svgProgress {
+            border: solid 1px black;
+        }
+
+        /* Progress Bar */
+        #progressContainer {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        /* Break Modal */
+        #breakModal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        #breakContent {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 8px;
+            text-align: center;
+            max-width: 400px;
+            font-family: sans-serif;
+        }
+
+        #continueButton {
+            margin-top: 15px;
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .bar {
+            fill: black;
+            stroke none;
+        }
+
+        .selector {
+            stroke: black;
+            fill: none;
+            stroke-width: 1px;
+        }
+
+        .activeSelector {
+            stroke: #C12C00;
+            stroke-width: 8px;
+            fill: none;
+        }
+
+        .correctSelector {
+            stroke: #00C164;
+            stroke-width: 9px;
+            fill: none;
+        }
+
+
+    </style>
+</head>
+<body>
+
+    <div id="experimentContainer">
+        <div id="prompt">Loading...</div>
+
+        <div style="height: 50px">&nbsp;</div>
+
+        <!-- Visualization Container -->
+        <svg id="experimentCanvas" width="600" height="200">
+            <g id="visInterface" transform="translate(40,40)">
+                <g id="stimulusGroup1" transform="translate(0,0)"></g>
+                <g id="stimulusGroup2" transform="translate(250,0)"></g>
+            </g>
+        </svg>
+
+        <div style="height: 50px">&nbsp;</div>
+
+        <!-- Progress Bar -->
+        <div id="progressContainer">
+            <svg id="svgProgress" width="200" height="20">
+                <rect id="rectComplete" x="0" y="0" width="0" height="20" fill="#72a7fc"></rect>
+                <rect id="rectRemaining" x="0" y="0" width="200" height="20" fill="#dddddd"></rect>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Break Modal -->
+    <div id="breakModal">
+        <div id="breakContent">
+            <h3>Take a Break</h3>
+            <p id="breakMessage"></p>
+            <button id="continueButton">Continue</button>
+        </div>
+    </div>
+
+    <script>
+        // === CONFIG layout ===
+        var W = 175;    // stimulus width
+        var H = 80;     // stimulus height
+        var GAP = 100;  // gap between stimuli
+        var PADDING = 20;
+
+        // Define block configurations (mix of mean and std)
+        var blockConfigs = [
+            { mode: 'mean', classNum: 10, visType: VisType.VIS_BARS, trialCount: 10, exposureTime: 1000 },
+            { mode: 'std', classNum: 10, visType: VisType.VIS_LINES, trialCount: 10, exposureTime: 1000 },
+            { mode: 'mean', classNum: 10, visType: VisType.VIS_AREA, trialCount: 10, exposureTime: 1000 }
+        ];
+
+        function updateSVGLayout()
+        {
+            var svgWidth = W * 2 + GAP + PADDING * 2;
+            var svgHeight = H + PADDING * 2;
+
+            var svg = d3.select("#experimentCanvas")
+                .attr("width", svgWidth)
+                .attr("height", svgHeight);
+
+            svg.selectAll("*").remove(); // clear previous elements
+
+            // Add main group
+            var mainGroup = svg.append("g")
+                .attr('id', 'visInterface')
+                .attr('transform', `translate(${PADDING}, ${PADDING})`);
+
+
+        }
+        // layout SVG
+        var groups = updateSVGLayout();
+
+        // Calculate total trials
+        var totalTrials = blockConfigs.reduce((sum, b) => sum + b.trialCount, 0);
+        var completedTrials = 0;
+
+
+        // Initialize ExperimentControl
+        var exp = new ExperimentControl(blockConfigs, d3.select("#visInterface"), W, H, GAP);
+
+        // === Add break interval ===
+        exp.setBreakInterval(2);
+
+        // === Modal behavior ===
+        // modal dispay/callback is now handeled by controller.js, as long as setBreakInterval has been calld
+        /*
+        exp.showBreakModal = function(message, callback) {
+            d3.select("#breakMessage").text(message);
+            d3.select("#breakModal").style("display", "flex");
+
+            d3.select("#continueButton").on("click", function() {
+                d3.select("#breakModal").style("display", "none");
+                if (callback) callback();
+            });
+        };
+        */
+
+        // === heartbeat function ===
+        function heartbeat() {
+            if (window.location.href.includes("localhost") || window.location.href.includes("127.0.0.1")) {
+                console.log("Heartbeat disabled on localhost.");
+                return; // skip heartbeat in local development
+            }
+            setTimeout(function () {
+                if (exp) {
+                    $.post("heartbeat.php", {
+                        totalComplete: exp.getData().length,
+                        totalAll: exp.blockConfigs.length * exp.blockConfigs[0].trialCount // rough estimate
+                    }, function (data, status) {
+                        console.log("heartbeat:", data, "status:", status);
+                    });
+                }
+                heartbeat(); // schedule next heartbeat
+            }, 15 * 1000); // every 15 seconds
+        }
+
+        // === Send data ===
+        var DATA_URL = "storedata.php";
+        function sendData(data2send, TRIALS, callback) {
+            (function (_data2send, trial, _callback) {
+                $.ajax({
+                    type: "POST",
+                    url: DATA_URL, // define DATA_URL globally, e.g., "storedata.php"
+                    data: JSON.stringify({
+                        experimentalData: _data2send
+                    }),
+                    dataType: "json",
+                    contentType: "application/json; charset=utf-8",
+
+                    success: function (data) {
+                        console.log("sendData SUCCESS:", data);
+                        if (_callback) {
+                            _callback(true);
+                        }
+                    },
+
+                    error: function (errMsg) {
+                        console.error("sendData failed:", errMsg);
+                        console.log("trials left:", trial);
+                        if (trial > 0) {
+                            sendData(_data2send, trial - 1, _callback);
+                        } else {
+                            if (_callback) {
+                                _callback(false);
+                            }
+                        }
+                    }
+                });
+            })(data2send, TRIALS !== undefined ? TRIALS : 3, callback);
+        }
+
+        // === Update progress bar ===
+        function updateProgress() {
+            completedTrials++;
+            var percent = completedTrials / totalTrials;
+            var barWidth = 200; // matches svgProgress width
+            var completeWidth = percent * barWidth;
+
+            d3.select("#rectComplete").attr("width", completeWidth);
+            d3.select("#rectRemaining")
+                .attr("width", barWidth - completeWidth)
+                .attr("x", completeWidth);
+        }
+
+        // === Update prompt dynamically ===
+        function updatePrompt(mode) {
+            var text = (mode === 'mean') ?
+                "Select the visualization with the higher average value" :
+                "Select the visualization that shows more variation";
+            d3.select("#prompt").text(text);
+        }
+
+        // Hook callbacks
+        exp.onBlockStart = function(index, config) {
+            updatePrompt(config.mode);
+        };
+
+        exp.setOnTrialEnd(function() {
+            console.log('updating progress');
+            updateProgress();
+        });
+
+        exp.onExperimentEnd = function() {
+            d3.select("#prompt").text("Experiment Complete! Thank you.");
+            console.log("Experiment Complete!");
+
+            var allData = exp.getData();
+            sendData(allData, 3, function (success)
+            {
+                /*
+                if (success) {
+                    alert("Data successfully saved. Thank you!");
+                } else {
+                    alert("Data could not be saved. Please contact support.");
+                }
+                */
+            });
+        };
+
+
+        // Start experiment
+        exp.start();
+
+        // start heartbeat
+        heartbeat();
+    </script>
+</body>
+</html>
