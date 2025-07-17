@@ -1,0 +1,263 @@
+<html>
+<head>
+    <title>VisSpeed Test</title>
+    <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.16.0/d3.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+	<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+
+    <script src="visspeed.js"></script>
+    <script src="controller.js"></script>
+
+    <style>
+        body {
+            font-family: sans-serif;
+            font-size: 12px;
+        }
+
+        .bar {
+            fill: black;
+            stroke none;
+        }
+
+        .sliderDiv {
+            width: 80px;
+            height: 5px;
+            font-size: 9px;
+        }
+
+        .selector {
+            stroke: black;
+            fill: none;
+            stroke-width: 1px;
+        }
+
+        .activeSelector {
+            stroke: #C12C00;
+            stroke-width: 10px;
+            fill: none;
+        }
+
+        #breakModal
+        {
+            display:none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        #breakContent {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 8px;
+            text-align: center;
+            max-width: 400px;
+            font-family: sans-serif;
+        }
+
+
+    </style>
+</head>
+
+<body>
+
+
+    <table>
+        <tr>
+            <td colspan="2"><b>Optimization</b></td>
+        </tr>
+
+        <tr>
+          <td>Number of Classes</td>
+          <td><div class="uiDiv sliderDiv" id="sliderClassNum"></div></td>
+          <td><span id="labelClassNum">15</span></td>
+        </tr>
+
+        <tr>
+            <td width="159">Mean difference</td>
+            <td width="100"><div class="uiDiv sliderDiv" id="sliderMean"></div></td>
+            <td width="100"><span id="labelMean"></span></td>
+        </tr>
+
+        <tr>
+            <td>STD difference</td>
+            <td><div class="uiDiv sliderDiv" id="sliderSTD"></div></td>
+            <td><span id="labelSTD"></span></td>
+        </tr>
+
+        <tr>
+            <td><button onclick="optimizeMean()">opt means</button></td>
+            <td><button onclick="optimizeStd()">opt std</button></td>
+            <td>&nbsp;</td>
+        </tr>
+    </table>
+
+    <div id="chart-type-selector">
+      <label><input type="radio" name="chartType" value="bars" checked>Bar Chart</label>
+      <label><input type="radio" name="chartType" value="lines">Lines</label>
+      <label><input type="radio" name="chartType" value="areas">Areas</label>
+    </div>
+
+    <div id="breakModal">
+        <div id="breakContent">
+            <h3>Take a Break</h3>
+            <p id="breakMessage"></p>
+            <button id="continueButton" style="
+                margin-top: 15px;
+                padding: 8px 16px;
+                font-size: 14px;
+                cursor: pointer;
+            ">Continue</button>
+        </div>
+    </div>
+
+    <svg width="800" height="400" style="border: solid 1px black">
+        <g id="visInterface" transform="translate(20,20)">
+            <g id="stimulusGroup1" transform="translate(10,10)"></g>
+            <g id="stimulusGroup2" transform="translate(200,10)"></g>
+        </g>
+    </svg>
+    <script>
+
+        var VIS_TYPE = VisType.VIS_BARS;
+        var CLASS_NUMBER = 10;
+        var W = 175;
+        var H = 80;
+        var GAP = 100;
+
+
+        var pair = new StimulusPair(15);
+
+        function plotPair()
+        {
+            pair.plotPair(
+                d3.select("#stimulusGroup1"),
+                d3.select("#stimulusGroup2"),
+                100 ,50,
+                VIS_TYPE
+            );
+        }
+        function optimizeMean() {
+            var meanDelta = +$('#sliderMean').slider('value');
+            pair.optimize(meanDelta, undefined);
+
+            plotPair();
+        }
+
+        function optimizeStd() {
+            var stdDelta = +$('#sliderSTD').slider('value');
+            pair.optimize(undefined, stdDelta);
+            plotPair();
+
+        }
+
+        var lastPerturb = undefined;
+        function perturbTest()
+        {
+            var solution = [pair.stim1, pair.stim2];
+            lastPerturb = Math.random() > 0.5 ? 1 : 0;
+            solution[lastPerturb].perturb();
+            plotPair();
+        }
+        function revertTest()
+        {
+            if (lastPerturb !== undefined) {
+                var solution = [pair.stim1, pair.stim2];
+                solution[lastPerturb].revert();
+                lastPerturb = undefined;
+                plotPair();
+            }
+        }
+
+
+        function refreshStimulus()
+        {
+            var mean = +$('#sliderMean').slider('value');
+            var std = +$('#sliderSTD').slider('value');
+
+            console.log('mean: ' + mean + ', std: ' + std);
+			//randomLineup(N);
+        }
+        function initInterface()
+        {
+            function renderChart(type)
+            {
+              if (type === 'bars') {
+                VIS_TYPE=VisType.VIS_BARS;
+              } else if (type === 'lines') {
+                  VIS_TYPE=VisType.VIS_LINES;
+              } else if (type === 'areas') {
+                  VIS_TYPE=VisType.VIS_AREA;
+              }
+              plotPair();
+            }
+            // sliders
+			$('#sliderMean').slider({ step: 0.01, min: 0, max: 1, value: 0.2, change: refreshStimulus, slide: function(event, ui) { d3.select("#labelMean").html(ui.value);} });
+            $('#sliderSTD').slider({ step: 0.01, min: 0, max: 1, value: 0.2, change: refreshStimulus, slide: function(event, ui) { d3.select("#labelStd").html(ui.value);} });
+
+            // new classNum slider (min 4, max 20)
+             $('#sliderClassNum').slider({
+                 step: 1, min: 4, max: 20, value: 10,
+                 change: function(event, ui) {
+                     $('#labelClassNum').text(ui.value);
+                     pair = new StimulusPair(ui.value);
+                     plotPair();
+                 },
+                 slide: function(event, ui) {
+                     $('#labelClassNum').text(ui.value);
+                 }
+             });
+
+            // Set up event listener on radio buttons
+            d3.selectAll('input[name="chartType"]').on('change', function(event) {
+              var selectedType = this.value;
+              renderChart(selectedType);
+            });
+
+        }
+
+        // initialize interface
+        initInterface();
+
+        // plot the pairs
+        //plotPair();
+
+        // create an experiment block controller
+        /*
+        var block = new BlockController({
+            mode: 'mean',
+            classNum: CLASS_NUMBER,
+            visType: VIS_TYPE,
+            exposureTime: 500
+        });
+        */
+
+        var blockConfig = [
+            {
+                mode: 'mean',
+                classNum: CLASS_NUMBER,
+                visType: VIS_TYPE,
+                trialCount: 10,
+                exposureTime: 1000
+            },
+
+            {
+                mode: 'mean',
+                classNum: CLASS_NUMBER,
+                visType: VisType.VIS_LINES,
+                trialCount: 10,
+                exposureTime: 1000
+            },
+        ];
+        var exp = new ExperimentControl(blockConfig, d3.select("#visInterface"), W, H, GAP);
+        exp.onExperimentEnd = function() {
+            console.log("experiment complete!");
+        }
+        exp.start();
+
+    </script>
+</body>
+</html>
