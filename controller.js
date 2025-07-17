@@ -1,5 +1,6 @@
 // 800 miliseconds of fixation
 var FIXATION_TIME = 800;
+var TRAINING = false;
 
 function BlockController(options)
 {
@@ -113,8 +114,47 @@ BlockController.prototype.generateTrial = function()
 
 BlockController.prototype.nextTrial = function(isCorrect)
 {
+    if (!isCorrect && TRAINING)
+    {
+        // remove active selectors
+        d3.selectAll("rect.selector")
+            .style('stroke', null)
+            .classed('activeSelector', false);
+
+        // re-reveal the stimuli
+        if (this.timeout !== undefined) {
+            clearTimeout(this.timeout);
+            this.timeout = undefined;
+        }
+        d3.selectAll(".visGroup").style('visibility', 'visible');
+
+        this.selected = undefined;
+
+        let correctSide = this.correct; // 1 => left, 2 => right
+        let selectorId = correctSide === 1 ? '#stimulusGroup1' : '#stimulusGroup2';
+        let flashes = 0;
+        let self = this;
+
+        function flash(_flashes)
+        {
+            var FLASH_RATE = 120;
+            d3.select(selectorId).select('rect.selector')
+                .classed('correctSelector', _flashes % 2 === 0);
+            _flashes++;
+            if (_flashes < 8) { // 3 flashes = 6 toggles
+                setTimeout(function() { flash(_flashes); }, FLASH_RATE);
+            }
+        }
+        flash(flashes);
+        return false;
+    }
+
     // clear the last trial
     this.clearTrial();
+
+    if (this.onTrialEnd) {
+        this.onTrialEnd();
+    }
 
     const oldDelta = this.delta;
     let direction;
@@ -279,6 +319,10 @@ BlockController.prototype.maskStimulus = function()
     stim2Group.select(".visGroup").style('visibility', 'hidden');
 };
 
+
+// break every k blocks
+var BREAK_EVERY = 0;
+
 function ExperimentControl(blockConfigs, svg, w, h, gap, options = {}) {
     this.svg = svg;
     this.width = w;
@@ -298,12 +342,14 @@ function ExperimentControl(blockConfigs, svg, w, h, gap, options = {}) {
     this.onTrialEnd = function() {};
 
     // Break settings
-    this.breakEveryKBlocks = BREAK_EVERY; // default every 2 blocks
+    this.breakEveryKBlocks = options.breakInterval ?? BREAK_EVERY; // default every 2 blocks
     this.breakMessage = options.breakMessage ?? "Take a short break!";
 }
 
-// break every k blocks
-var BREAK_EVERY = 0;
+
+ExperimentControl.prototype.setBreakInterval = function(breakInterval) {
+    this.breakEveryKBlocks = breakInterval
+}
 
 ExperimentControl.prototype.start = function() {
     var CROSS_SIZE = 10;
@@ -337,6 +383,10 @@ ExperimentControl.prototype.start = function() {
     }
     this.nextBlock();
 };
+
+ExperimentControl.prototype.setOnTrialEnd = function(func) {
+    this.onTrialEnd = func;
+}
 
 ExperimentControl.prototype.nextBlock = function(returnFromBreak) {
 
@@ -377,6 +427,9 @@ ExperimentControl.prototype.nextBlock = function(returnFromBreak) {
             var done = self.nextBlock();
         }
     });
+    if (this.onTrialEnd) {
+        this.currentBlock.onTrialEnd = this.onTrialEnd;
+    }
 
     return false;
 };
@@ -408,3 +461,7 @@ ExperimentControl.prototype.storeBlockResponses = function(index) {
         this.data.push(blockData[i]);
     }
 };
+
+ExperimentControl.prototype.getData = function() {
+    return this.data;
+}

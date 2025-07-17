@@ -140,6 +140,11 @@
         var GAP = 100;  // gap between stimuli
         var PADDING = 20;
 
+
+        // URLS
+        var FINISHED_REDICTED_URL = null;
+        var DATA_URL = "php/storedata.php";
+
         // Define block configurations (mix of mean and std)
         var blockConfigs = [
             { mode: 'mean', classNum: 10, visType: VisType.VIS_BARS, trialCount: 10, exposureTime: 1000 },
@@ -201,7 +206,7 @@
             }
             setTimeout(function () {
                 if (exp) {
-                    $.post("heartbeat.php", {
+                    $.post("php/heartbeat.php", {
                         totalComplete: exp.getData().length,
                         totalAll: exp.blockConfigs.length * exp.blockConfigs[0].trialCount // rough estimate
                     }, function (data, status) {
@@ -213,7 +218,6 @@
         }
 
         // === Send data ===
-        var DATA_URL = "storedata.php";
         function sendData(data2send, TRIALS, callback) {
             (function (_data2send, trial, _callback) {
                 $.ajax({
@@ -232,7 +236,8 @@
                         }
                     },
 
-                    error: function (errMsg) {
+                    error: function (errMsg)
+                    {
                         console.error("sendData failed:", errMsg);
                         console.log("trials left:", trial);
                         if (trial > 0) {
@@ -292,6 +297,11 @@
                     alert("Data could not be saved. Please contact support.");
                 }
                 */
+                if (FINISHED_REDICTED_URL)
+				{
+					window.location.replace(FINISHED_REDICTED_URL);
+				}
+
             });
         };
 
