@@ -87,7 +87,7 @@ if ($_SESSION['status'] == 'failed') {
              console.log(data);
              if(data.indexOf('success') >= 0) { // if true (1)
                 setTimeout(function(){// wait for 5 secs(2)
-			location.href = 'tutorial1.html?statistic=' + <?php echo '"' . $_SESSION['expcondition'] . '"' ?>; // then reload the page.(3)
+			location.href = '../tutorial1.html?statistic=' + <?php echo '"' . $_SESSION['expcondition'] . '"' ?>; // then reload the page.(3)
                 }, 100);
              }
              else{
