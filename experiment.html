@@ -140,6 +140,8 @@
         var GAP = 100;  // gap between stimuli
         var PADDING = 20;
 
+        var ENGAGEMENT_PER_BLOCK=2;
+
 
         // URLS
         var FINISHED_REDICTED_URL = null;
@@ -151,6 +153,9 @@
             { mode: 'std', classNum: 15, visType: VisType.VIS_LINES, trialCount: 10, exposureTime: 1000 },
             { mode: 'mean', classNum: 15, visType: VisType.VIS_AREA, trialCount: 10, exposureTime: 1000 }
         ];
+        for (var i=0; i<blockConfigs.length; i++) {
+            blockConfigs[i].engagementCount=ENGAGEMENT_PER_BLOCK || 0;
+        }
 
         function updateSVGLayout()
         {
@@ -167,14 +172,12 @@
             var mainGroup = svg.append("g")
                 .attr('id', 'visInterface')
                 .attr('transform', `translate(${PADDING}, ${PADDING})`);
-
-
         }
         // layout SVG
         var groups = updateSVGLayout();
 
         // Calculate total trials
-        var totalTrials = blockConfigs.reduce((sum, b) => sum + b.trialCount, 0);
+        var totalTrials = blockConfigs.reduce((sum, b) => sum + b.trialCount + b.engagementCount, 0);
         var completedTrials = 0;
 
 
@@ -219,27 +222,24 @@
 
         // === Send data ===
         function sendData(data2send, TRIALS, callback) {
-            (function (_data2send, trial, _callback) {
+            (function(_data2send, trial, _callback) {
                 $.ajax({
                     type: "POST",
-                    url: DATA_URL, // define DATA_URL globally, e.g., "storedata.php"
-                    data: JSON.stringify({
-                        experimentalData: _data2send
-                    }),
+                    url: DATA_URL,
+                    data: JSON.stringify(_data2send),
                     dataType: "json",
                     contentType: "application/json; charset=utf-8",
 
-                    success: function (data) {
-                        console.log("sendData SUCCESS:", data);
+                    success: function(response) {
+                        console.log("sendData SUCCESS:", response);
                         if (_callback) {
                             _callback(true);
                         }
                     },
 
-                    error: function (errMsg)
-                    {
-                        console.error("sendData failed:", errMsg);
-                        console.log("trials left:", trial);
+                    error: function(errMsg) {
+                        console.log("sendData failed:", errMsg);
+                        console.log("Retries left:", trial);
                         if (trial > 0) {
                             sendData(_data2send, trial - 1, _callback);
                         } else {
@@ -283,20 +283,20 @@
             updateProgress();
         });
 
-        exp.onExperimentEnd = function() {
+        exp.onExperimentEnd = function()
+        {
             d3.select("#prompt").text("Experiment Complete! Thank you.");
             console.log("Experiment Complete!");
 
-            var allData = exp.getData();
-            sendData(allData, 3, function (success)
+            var payload = {
+                timestamp: Date.now(),
+                experimentalData: exp.getData(), // all block data
+                engagementAccuracy: exp.getEngagementSummary().accuracy, // accuracy on engagement checks
+                stimulusAccuracy: exp.calculateStimulusAccuracy()
+            };
+
+            sendData(payload, 3, function (success)
             {
-                /*
-                if (success) {
-                    alert("Data successfully saved. Thank you!");
-                } else {
-                    alert("Data could not be saved. Please contact support.");
-                }
-                */
                 if (FINISHED_REDICTED_URL)
 				{
 					window.location.replace(FINISHED_REDICTED_URL);

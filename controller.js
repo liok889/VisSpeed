@@ -2,6 +2,9 @@
 var FIXATION_TIME = 800;
 var TRAINING = false;
 
+const ENGAGEMENT_MEAN_DELTA = 0.7;
+const ENGAGEMENT_STD_DELTA = 0.3;
+
 function BlockController(options)
 {
     this.options = options;
@@ -15,9 +18,25 @@ function BlockController(options)
 
     // how many trials so far
     this.trialCount = options.trialCount || 0;
+    this.trialsShown = 0;
 
     this.width = options.width || 100;
     this.height = options.height || 50;
+
+    // deal with engagement checks
+    this.engagementCount = options.engagementCount || 0;
+    this.engagementIndices = [];
+    if (this.engagementCount > 0 && this.trialCount > 0) {
+        while (this.engagementIndices.length < this.engagementCount) {
+            let idx = Math.floor(Math.random() * this.trialCount);
+            if (!this.engagementIndices.includes(idx)) {
+                this.engagementIndices.push(idx);
+            }
+        }
+        this.engagementIndices.sort((a, b) => a - b);
+    }
+    this.engagementResults = { correct: 0, total: 0 };
+
 
     // User-defined callback when a placeholder is clicked
     this.onSelect = options.onSelect || function(selectedIndex) {
@@ -31,6 +50,7 @@ function BlockController(options)
     this.stimPair = new StimulusPair(this.classNum);
     this.generateTrial();
 
+    // add a callback to listen to keyboard event
     (function(object, _options) {
     d3.select(document)
         .on('keydown', function() {
@@ -58,42 +78,55 @@ function BlockController(options)
 
 BlockController.prototype.generateTrial = function()
 {
+    var generationTime = Date.now();
+    var delta, actualDelta, actualSecondaryDelta;
 
-    this.correct = undefined;
-    this.curTrial = {
-        mode: this.mode,
-        requestedDelta: this.delta,
-        delta: 0,
-        deltaSecondary: 0,
-        correct: undefined,
-        trialNum: this.data.length+1,
-        generationTime: Date.now()
-    };
+    var currentIndex = this.data.length;
+    var isEngagementTrial = false;
+    if (this.engagementIndices.length > 0 && this.engagementIndices[0] === currentIndex) {
+        isEngagementTrial = true;
+        this.engagementIndices.shift(); // remove it so it's not reused
+    }
 
-    if (this.mode === 'mean') {
-        this.stimPair.optimize(this.delta, undefined);
+    // mode
+    if (this.mode == 'mean')
+    {
+        delta = isEngagementTrial ? ENGAGEMENT_MEAN_DELTA : this.delta;
+        this.stimPair.optimize(delta, undefined);
         if (this.stimPair.stim1.mean > this.stimPair.stim2.mean) {
             this.correct = 1;
         }
         else {
             this.correct = 2;
         }
-        this.curTrial.delta = Math.abs(this.stimPair.stim1.mean-this.stimPair.stim2.mean);
-        this.curTrial.deltaSecondary = Math.abs(this.stimPair.stim1.std-this.stimPair.stim2.std);
+        actualDelta = Math.abs(this.stimPair.stim1.mean-this.stimPair.stim2.mean);
+        actualSecondaryDelta = Math.abs(this.stimPair.stim1.std-this.stimPair.stim2.std);
 
-    } else {
-        this.stimPair.optimize(undefined, this.delta);
+    }
+    else {
+        delta = isEngagementTrial ? ENGAGEMENT_STD_DELTA : this.delta;
+        this.stimPair.optimize(undefined, delta);
         if (this.stimPair.stim1.std > this.stimPair.stim2.std) {
             this.correct = 1;
         }
         else {
             this.correct = 2;
         }
-        this.curTrial.delta = Math.abs(this.stimPair.stim1.std-this.stimPair.stim2.std);
-        this.curTrial.deltaSecondary = Math.abs(this.stimPair.stim1.mean-this.stimPair.stim2.mean);
+        actualDelta = Math.abs(this.stimPair.stim1.std-this.stimPair.stim2.std);
+        actualSecondaryDelta = Math.abs(this.stimPair.stim1.mean-this.stimPair.stim2.mean);
     }
-    this.curTrial.generationTime = Date.now() - this.curTrial.generationTime;
-    this.curTrial.fixationTime = FIXATION_TIME;
+
+    this.curTrial = {
+        mode: this.mode,
+        requestedDelta: delta,
+        delta: actualDelta,
+        deltaSecondary: actualSecondaryDelta,
+        correct: undefined,
+        trialNum: this.data.length+1,
+        generationTime: Date.now() - generationTime,
+        isEngagement: isEngagementTrial,
+        fixationTime: FIXATION_TIME
+    };
 
     if (FIXATION_TIME)
     {
@@ -111,6 +144,10 @@ BlockController.prototype.generateTrial = function()
         this.showTrial();
     }
 };
+BlockController.prototype.getEngagementResults = function() {
+    return this.engagementResults;
+};
+
 
 BlockController.prototype.nextTrial = function(isCorrect)
 {
@@ -176,8 +213,9 @@ BlockController.prototype.nextTrial = function(isCorrect)
     }
 
     this.lastDirection = direction;
-    if (this.trialCount > 0 && this.data.length >= this.trialCount) {
-        return true;
+    if (this.trialCount > 0 && this.trialsShown >= (this.trialCount + this.engagementCount))
+    {
+        return true; // block is complete
     }
     else {
         this.generateTrial();
@@ -207,6 +245,7 @@ BlockController.prototype.clearTrial = function() {
 
 BlockController.prototype.showTrial = function(options)
 {
+    this.trialsShown++;
     this.selected = undefined;
     if (!options) { options = this.options; }
 
@@ -298,7 +337,15 @@ BlockController.prototype.recordSelection = function()
         this.curTrial.correct = isCorrect ? 1 : 0;
         this.curTrial.selection = this.selected == 1 ? 'left' : 'right' ;
         this.curTrial.responseTime = Date.now() - this.displayTime;
-        this.data.push(this.curTrial);
+
+        // see if this is engagement trial or actual
+        if (this.curTrial.isEngagement)
+        {
+            if (isCorrect) this.engagementResults.correct++;
+            this.engagementResults.total++;
+        } else {
+            this.data.push(this.curTrial);
+        }
 
         this.selected = undefined;
 
@@ -344,6 +391,10 @@ function ExperimentControl(blockConfigs, svg, w, h, gap, options = {}) {
     // Break settings
     this.breakEveryKBlocks = options.breakInterval ?? BREAK_EVERY; // default every 2 blocks
     this.breakMessage = options.breakMessage ?? "Take a short break!";
+
+    // engagement checks
+    this.totalEngagement = { correct: 0, total: 0 };
+
 }
 
 
@@ -454,13 +505,40 @@ ExperimentControl.prototype.showBreakModal = function(remainingBlocks) {
     };
 };
 
+ExperimentControl.prototype.calculateStimulusAccuracy = function()
+{
+    if (!this.data || this.data.length === 0) return 0;
+
+    const correctCount = this.data.filter(trial => trial.correct === 1).length;
+    return correctCount / this.data.length;
+}
+
 ExperimentControl.prototype.storeBlockResponses = function(index) {
     var blockData = this.currentBlock.data;
     for (var i = 0; i < blockData.length; i++) {
         blockData[i].blockNum = this.currentIndex + 1;
         this.data.push(blockData[i]);
     }
-};
+
+    // add up engagement results for this block
+    var engagement = this.currentBlock.getEngagementResults();
+    this.totalEngagement.correct += engagement.correct;
+    this.totalEngagement.total += engagement.total;
+}
+
+ExperimentControl.prototype.getEngagementSummary = function()
+{
+    var eng = this.totalEngagement;
+
+    return {
+        totalChecks: eng.total,
+        correct: eng.correct,
+        accuracy: eng.total > 0
+            ? this.totalEngagement.correct / this.totalEngagement.total
+            : null
+    };
+}
+
 
 ExperimentControl.prototype.getData = function() {
     return this.data;

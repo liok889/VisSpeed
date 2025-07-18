@@ -53,7 +53,22 @@ $sql = "INSERT INTO trials
 (userid, blockNum, trialNum, correct, selection, visType, mode, delta, deltaSecondary, requestedDelta, exposureTime, fixationTime, generationTime, responseTime, parameters)
 VALUES " . implode(',', $insert);
 
-if (!isset($_SESSION['datastored']) && mysqli_query($conn, $sql)) {
+if (!isset($_SESSION['datastored']) && mysqli_query($conn, $sql))
+{
+    // Update engagement and stimulus accuracy if present
+    if (isset($json_obj->stimulusAccuracy) || isset($json_obj->engagementAccuracy))
+    {
+        $stimulusAcc = isset($json_obj->stimulusAccuracy) ? floatval($json_obj->stimulusAccuracy) : 0;
+        $engagementAcc = isset($json_obj->engagementAccuracy) ? floatval($json_obj->engagementAccuracy) : 0;
+
+        $updateSql = "UPDATE user
+                      SET stimulusAcc = $stimulusAcc, engagementAcc = $engagementAcc
+                      WHERE userid = $userid";
+
+        mysqli_query($conn, $updateSql);
+    }
+}
+
     $_SESSION['datastored'] = true;
     echo json_encode(["status" => "success"]);
     mysqli_close($conn);
