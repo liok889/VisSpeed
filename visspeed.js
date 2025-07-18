@@ -54,7 +54,7 @@ VisSpeedStim.prototype.render = function(g, w, h, visType)
 {
     g.selectAll('*').remove();
 
-    var PADDING = 7;
+    var PADDING = 10;
 
     // render a square that is slightly larger than the vis space
     g.append('rect')

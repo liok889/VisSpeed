@@ -103,7 +103,7 @@
     <div id="experimentContainer">
         <div id="prompt">Loading...</div>
 
-        <div style="height: 50px">&nbsp;</div>
+        <div style="height: 60px">&nbsp;</div>
 
         <!-- Visualization Container -->
         <svg id="experimentCanvas" width="600" height="200">
@@ -113,9 +113,9 @@
             </g>
         </svg>
 
-        <div style="height: 50px">
-            &nbsp;<br>
-            <span id="enterPrompt" style="font-size: 14px; visibility: hidden">press ENTER to confirm selection</span>
+        <div style="height: 80px">
+            &nbsp;<br>&nbsp;<br>
+            <span id="enterPrompt" style="font-size: 16px; visibility: hidden">press ENTER to confirm selection</span>
         </div>
 
         <!-- Progress Bar -->
@@ -161,7 +161,7 @@
         // configuration for training
         var trainingConfigs = [
             { mode: 'mean', classNum: 15, visType: VisType.VIS_BARS, trialCount: 6, exposureTime: 1500 },
-            { mode: 'mean', classNum: 15, visType: VisType.VIS_LINES, trialCount: 6, exposureTime: 1500 },
+            { mode: 'mean', classNum: 15, visType: VisType.VIS_DOTS, trialCount: 6, exposureTime: 1500 },
             { mode: 'mean', classNum: 15, visType: VisType.VIS_AREA, trialCount: 6, exposureTime: 1500 },
         ];
 
@@ -171,9 +171,9 @@
         var DATA_URL = "php/storedata.php";
 
         // === CONFIG layout ===
-        var W = 175;    // stimulus width
-        var H = 80;     // stimulus height
-        var GAP = 100;  // gap between stimuli
+        var W = 220;    // stimulus width
+        var H = 130;     // stimulus height
+        var GAP = 110;  // gap between stimuli
         var PADDING = 20;
 
         // default statistic to test

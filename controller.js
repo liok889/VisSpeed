@@ -7,6 +7,7 @@ const ENGAGEMENT_STD_DELTA = 0.3;
 
 function BlockController(options)
 {
+    this.firstTrial = true;
     this.options = options;
     this.data = [];
     this.mode = options.mode || 'mean';  // 'mean' or 'std'
@@ -17,7 +18,7 @@ function BlockController(options)
     this.classNum = options.classNum || 10;
 
     // how many trials so far
-    this.trialCount = options.trialCount || 0;
+    this.trialCount = (options.trialCount || 0) + 1;
     this.trialsShown = 0;
 
     this.width = options.width || 100;
@@ -91,7 +92,8 @@ BlockController.prototype.generateTrial = function()
     // mode
     if (this.mode == 'mean')
     {
-        delta = isEngagementTrial ? ENGAGEMENT_MEAN_DELTA : this.delta;
+        // first trial in block is accomodation, not measured
+        delta = isEngagementTrial || this.data.length==0 ? ENGAGEMENT_MEAN_DELTA : this.delta;
         this.stimPair.optimize(delta, undefined);
         if (this.stimPair.stim1.mean > this.stimPair.stim2.mean) {
             this.correct = 1;
@@ -104,7 +106,8 @@ BlockController.prototype.generateTrial = function()
 
     }
     else {
-        delta = isEngagementTrial ? ENGAGEMENT_STD_DELTA : this.delta;
+        // first trial in block is accomodation
+        delta = isEngagementTrial || this.data.length==0 ? ENGAGEMENT_STD_DELTA : this.delta;
         this.stimPair.optimize(undefined, delta);
         if (this.stimPair.stim1.std > this.stimPair.stim2.std) {
             this.correct = 1;
@@ -198,23 +201,26 @@ BlockController.prototype.nextTrial = function(isCorrect)
     const oldDelta = this.delta;
     let direction;
 
-    if (isCorrect)
-    {
-        // one down
-        this.delta = Math.max(this.minDelta, this.delta - this.stepSize);
-        direction = 'down';
-    } else
-    {
-        // three up
-        this.delta = Math.min(this.maxDelta, this.delta + 3 * this.stepSize);
-        direction = 'up';
-    }
+    if (!this.firstTrial) {
+        if (isCorrect)
+        {
+            // one down
+            this.delta = Math.max(this.minDelta, this.delta - this.stepSize);
+            direction = 'down';
+        } else
+        {
+            // three up
+            this.delta = Math.min(this.maxDelta, this.delta + 3 * this.stepSize);
+            direction = 'up';
+        }
 
-    if (this.lastDirection && direction !== this.lastDirection) {
-        this.reversals++;
+        if (this.lastDirection && direction !== this.lastDirection) {
+            this.reversals++;
+        }
+        this.lastDirection = direction;
     }
+    this.firstTrial = false;
 
-    this.lastDirection = direction;
     if (this.trialCount > 0 && this.trialsShown >= (this.trialCount + this.engagementCount))
     {
         return true; // block is complete
@@ -337,12 +343,14 @@ BlockController.prototype.recordSelection = function()
         }
 
         var isCorrect = this.selected == this.correct;
+        /*
         if (isCorrect) {
             console.log('Correct!');
         }
         else {
             console.log('Incorrect');
         }
+        */
         this.curTrial.correct = isCorrect ? 1 : 0;
         this.curTrial.selection = this.selected == 1 ? 'left' : 'right' ;
         this.curTrial.responseTime = Date.now() - this.displayTime;
@@ -524,7 +532,8 @@ ExperimentControl.prototype.calculateStimulusAccuracy = function()
 
 ExperimentControl.prototype.storeBlockResponses = function(index) {
     var blockData = this.currentBlock.data;
-    for (var i = 0; i < blockData.length; i++) {
+    // ignore first trial, accomodation
+    for (var i = 1; i < blockData.length; i++) {
         blockData[i].blockNum = this.currentIndex + 1;
         this.data.push(blockData[i]);
     }
