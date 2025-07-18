@@ -113,7 +113,10 @@
             </g>
         </svg>
 
-        <div style="height: 50px">&nbsp;</div>
+        <div style="height: 50px">
+            &nbsp;<br>
+            <span id="enterPrompt" style="font-size: 14px; visibility: hidden">press ENTER to confirm selection</span>
+        </div>
 
         <!-- Progress Bar -->
         <div id="progressContainer">
@@ -134,6 +137,26 @@
     </div>
 
     <script>
+
+        // Define block configurations
+        var blockConfigs = [
+            { mode: 'mean', classNum: 15, visType: VisType.VIS_BARS, trialCount: 10, exposureTime: 1000 },
+            { mode: 'std', classNum: 15, visType: VisType.VIS_LINES, trialCount: 10, exposureTime: 1000 },
+            { mode: 'mean', classNum: 15, visType: VisType.VIS_AREA, trialCount: 10, exposureTime: 1000 }
+        ];
+
+        // configuration for training
+        var trainingConfigs = [
+            { mode: 'mean', classNum: 15, visType: VisType.VIS_BARS, trialCount: 6, exposureTime: 1500 },
+            { mode: 'mean', classNum: 15, visType: VisType.VIS_LINES, trialCount: 6, exposureTime: 1500 },
+            { mode: 'mean', classNum: 15, visType: VisType.VIS_AREA, trialCount: 6, exposureTime: 1500 },
+        ];
+
+        // URLS
+        var FINISHED_REDICTED_URL = "strategy.html";
+        var FINISHED_TRAINING_URL = "tutorial_last.html";
+        var DATA_URL = "php/storedata.php";
+
         // === CONFIG layout ===
         var W = 175;    // stimulus width
         var H = 80;     // stimulus height
@@ -145,6 +168,7 @@
 
         // number of engagement checks per block
         var ENGAGEMENT_PER_BLOCK = 2;
+        var BREAK_INTERVAL = 2;
 
         var urlParams = new URLSearchParams(window.location.search);
         var STATISTIC = urlParams.get('statistic');
@@ -152,23 +176,19 @@
             STATISTIC = 'mean';
         }
 
-
-        // URLS
-        var FINISHED_REDICTED_URL = null;
-        var DATA_URL = "php/storedata.php";
-
-        // Define block configurations (mix of mean and std)
-        var blockConfigs = [
-            { mode: 'mean', classNum: 15, visType: VisType.VIS_BARS, trialCount: 10, exposureTime: 1000 },
-            { mode: 'std', classNum: 15, visType: VisType.VIS_LINES, trialCount: 10, exposureTime: 1000 },
-            { mode: 'mean', classNum: 15, visType: VisType.VIS_AREA, trialCount: 10, exposureTime: 1000 }
-        ];
+        // practice mode?s
+        TRAINING = urlParams.get('training');
+        if (TRAINING && TRAINING.trim() == '1') {
+            ENGAGEMENT_PER_BLOCK=0;
+            BREAK_INTERVAL=0;
+            blockConfigs = trainingConfigs
+        }
 
         for (var i=0; i<blockConfigs.length; i++)
         {
             blockConfigs[i].engagementCount=ENGAGEMENT_PER_BLOCK || 0;
             if (STATISTIC) {
-                blockConfig[i].mode = STATISTIC;
+                blockConfigs[i].mode = STATISTIC;
             }
         }
 
@@ -195,12 +215,11 @@
         var totalTrials = blockConfigs.reduce((sum, b) => sum + b.trialCount + b.engagementCount, 0);
         var completedTrials = 0;
 
-
         // Initialize ExperimentControl
         var exp = new ExperimentControl(blockConfigs, d3.select("#visInterface"), W, H, GAP);
 
         // === Add break interval ===
-        exp.setBreakInterval(2);
+        exp.setBreakInterval(BREAK_INTERVAL);
 
         // === heartbeat function ===
         function heartbeat() {
@@ -257,7 +276,7 @@
         function updateProgress() {
             completedTrials++;
             var percent = completedTrials / totalTrials;
-            var barWidth = 200; // matches svgProgress width
+            var barWidth = +d3.select("#svgProgress").attr('width'); // matches svgProgress width
             var completeWidth = percent * barWidth;
 
             d3.select("#rectComplete").attr("width", completeWidth);
@@ -280,30 +299,33 @@
         };
 
         exp.setOnTrialEnd(function() {
-            console.log('updating progress');
             updateProgress();
         });
 
         exp.onExperimentEnd = function()
         {
-            d3.select("#prompt").text("Experiment Complete! Thank you.");
-            console.log("Experiment Complete!");
+            d3.select("#prompt").text("Experiment Complete!");
 
-            var payload = {
-                timestamp: Date.now(),
-                experimentalData: exp.getData(), // all block data
-                engagementAccuracy: exp.getEngagementSummary().accuracy, // accuracy on engagement checks
-                stimulusAccuracy: exp.calculateStimulusAccuracy()
-            };
+            if (TRAINING) {
+                window.location.replace(FINISHED_TRAINING_URL);
+            }
+            else {
 
-            sendData(payload, 3, function (success)
-            {
-                if (FINISHED_REDICTED_URL)
-				{
-					window.location.replace(FINISHED_REDICTED_URL);
-				}
+                var payload = {
+                    timestamp: Date.now(),
+                    experimentalData: exp.getData(), // all block data
+                    engagementAccuracy: exp.getEngagementSummary().accuracy, // accuracy on engagement checks
+                    stimulusAccuracy: exp.calculateStimulusAccuracy()
+                };
 
-            });
+                sendData(payload, 3, function (success)
+                {
+                    if (FINISHED_REDICTED_URL)
+    				{
+    					window.location.replace(FINISHED_REDICTED_URL);
+    				}
+                });
+            }
         };
 
         // Start experiment

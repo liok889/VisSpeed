@@ -182,6 +182,8 @@ BlockController.prototype.nextTrial = function(isCorrect)
                 setTimeout(function() { flash(_flashes); }, FLASH_RATE);
             }
         }
+        d3.select("#enterPrompt").style('visibility', 'hidden');
+
         flash(flashes);
         return false;
     }
@@ -247,6 +249,7 @@ BlockController.prototype.showTrial = function(options)
 {
     this.trialsShown++;
     this.selected = undefined;
+
     if (!options) { options = this.options; }
 
     const duration = options?.exposureTime || 0;
@@ -282,6 +285,8 @@ BlockController.prototype.showTrial = function(options)
                     .style('stroke', null)
                     .classed('activeSelector', false);
                 _this.selected = 1;
+
+                d3.select("#enterPrompt").style('visibility', 'visible');
             });
         _stim2Group.select("rect.selector")
             .on('mousedown', function() {
@@ -292,6 +297,8 @@ BlockController.prototype.showTrial = function(options)
                     .style('stroke', 'red')
                     .classed('activeSelector', true);
                 _this.selected = 2;
+
+                d3.select("#enterPrompt").style('visibility', 'visible');
             });
 
         if (_duration > 0)
@@ -321,6 +328,8 @@ BlockController.prototype.recordSelection = function()
 
     if (this.selected)
     {
+        d3.select("#enterPrompt").style('visibility', 'hidden');
+
         // remove any timeout
         if (this.timeout !== undefined) {
             clearTimeout(this.timeout);
