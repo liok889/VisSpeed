@@ -5,8 +5,8 @@ var MEDIUM_MEAN = 0.3;
 var EASY_STD = 0.3;
 var MEDIUM_STD = 0.15;
 
-var W = 175;
-var H = 80;
+var W = 200;
+var H = 100;
 var GAP = 100;
 var PAD=25;
 
