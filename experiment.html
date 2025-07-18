@@ -154,7 +154,7 @@
 
         // URLS
         var FINISHED_REDICTED_URL = "strategy.html";
-        var FINISHED_TRAINING_URL = "tutorial_last.html";
+        var FINISHED_TRAINING_URL = "tutorial_last.html?statistic=";
         var DATA_URL = "php/storedata.php";
 
         // === CONFIG layout ===
@@ -307,7 +307,7 @@
             d3.select("#prompt").text("Experiment Complete!");
 
             if (TRAINING) {
-                window.location.replace(FINISHED_TRAINING_URL);
+                window.location.replace(FINISHED_TRAINING_URL + STATISTIC);
             }
             else {
 
