@@ -49,7 +49,7 @@ foreach ($json_obj->experimentalData as $row) {
     ")";
 }
 
-$sql = "INSERT INTO trials
+$sql = "INSERT INTO response
 (userid, blockNum, trialNum, correct, selection, visType, mode, delta, deltaSecondary, requestedDelta, exposureTime, fixationTime, generationTime, responseTime, parameters)
 VALUES " . implode(',', $insert);
 
