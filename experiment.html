@@ -140,7 +140,17 @@
         var GAP = 100;  // gap between stimuli
         var PADDING = 20;
 
-        var ENGAGEMENT_PER_BLOCK=2;
+        // default statistic to test
+        var STATISTIC = 'mean';
+
+        // number of engagement checks per block
+        var ENGAGEMENT_PER_BLOCK = 2;
+
+        var urlParams = new URLSearchParams(window.location.search);
+        var STATISTIC = urlParams.get('statistic');
+        if (!STATISTIC) {
+            STATISTIC = 'mean';
+        }
 
 
         // URLS
@@ -153,8 +163,13 @@
             { mode: 'std', classNum: 15, visType: VisType.VIS_LINES, trialCount: 10, exposureTime: 1000 },
             { mode: 'mean', classNum: 15, visType: VisType.VIS_AREA, trialCount: 10, exposureTime: 1000 }
         ];
-        for (var i=0; i<blockConfigs.length; i++) {
+
+        for (var i=0; i<blockConfigs.length; i++)
+        {
             blockConfigs[i].engagementCount=ENGAGEMENT_PER_BLOCK || 0;
+            if (STATISTIC) {
+                blockConfig[i].mode = STATISTIC;
+            }
         }
 
         function updateSVGLayout()
@@ -186,20 +201,6 @@
 
         // === Add break interval ===
         exp.setBreakInterval(2);
-
-        // === Modal behavior ===
-        // modal dispay/callback is now handeled by controller.js, as long as setBreakInterval has been calld
-        /*
-        exp.showBreakModal = function(message, callback) {
-            d3.select("#breakMessage").text(message);
-            d3.select("#breakModal").style("display", "flex");
-
-            d3.select("#continueButton").on("click", function() {
-                d3.select("#breakModal").style("display", "none");
-                if (callback) callback();
-            });
-        };
-        */
 
         // === heartbeat function ===
         function heartbeat() {
@@ -268,8 +269,8 @@
         // === Update prompt dynamically ===
         function updatePrompt(mode) {
             var text = (mode === 'mean') ?
-                "Select the visualization with the higher average value" :
-                "Select the visualization that shows more variation";
+                "Select the chart with the higher average value" :
+                "Select the chart that shows more variation";
             d3.select("#prompt").text(text);
         }
 

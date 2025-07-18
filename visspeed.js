@@ -256,8 +256,39 @@ StimulusPair.prototype.plotPair = function(g1, g2, w, h, visType)
 
     this.stim1.render(g1, w, h, visType);
     this.stim2.render(g2, w, h, visType);
+
+    this.stim1.g = g1;
+    this.stim2.g = g2;
 }
 
+StimulusPair.prototype.highlightHigher = function()
+{
+    var rect = null;
+    if (this.statistic)
+    {
+        if (this.statistic=='mean') {
+            if (this.stim1.mean > this.stim2.mean && this.stim1.g) {
+                rect = this.stim1.g.select('rect.selector');
+            }
+            else if (this.stim2.g) {
+                rect = this.stim2.g.select('rect.selector');
+            }
+        }
+        else {
+            if (this.stim1.std > this.stim2.std && this.stim1.g) {
+                rect = this.stim1.g.select('rect.selector');
+            }
+            else if (this.stim2.g) {
+                rect = this.stim2.g.select('rect.selector');
+            }
+        }
+    }
+    if (rect) {
+        rect
+            .style('stroke', 'red')
+            .style('stroke-width', '6px');
+    }
+}
 StimulusPair.prototype.optimize = function(deltaMean, deltaStd)
 {
     var T_INIT = 1;
@@ -277,10 +308,13 @@ StimulusPair.prototype.optimize = function(deltaMean, deltaStd)
     var solution = [s1, s2];
     var solutionDiff, _solutionDiff;
 
-    if (deltaMean !== undefined) {
+    if (deltaMean !== undefined)
+    {
+        this.statistic = 'mean';
         solutionDiff = Math.abs(Math.abs(s1.mean - s2.mean)-deltaMean);
         _solutionDiff = Math.abs(s1.std-s2.std);
     } else {
+        this.statistic = 'std';
         solutionDiff = Math.abs(Math.abs(s1.std - s2.std)-deltaStd);
         _solutionDiff = Math.abs(s1.mean-s2.mean);
     }

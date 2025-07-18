@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Experiment instructions</title>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.16.0/d3.min.js"></script>
+
+	<!-- Load experiment scripts -->
+	<script src="visspeed.js"></script>
+	<script src="controller.js"></script>
+	<script src="tutorial.js"></script>
+
+	<style>
+		body {
+			background-color: #ffffff;
+			font-family: Helvetica;
+			font-size: 18px;
+
+			/* disable selection */
+			-webkit-user-select: none;
+			-moz-user-select: -moz-none;
+			-ms-user-select: none;
+			user-select: none;
+		}
+		td {font-size: 20px;}
+
+		.uiParentDiv {
+			margin-bottom: 10px;
+			vertical-align: middle;
+		}
+		.uiDiv {
+			width: 80px;
+			display: inline-block;
+		}
+
+		.sliderDiv {
+			width: 80px;
+			height: 5px;
+			font-size: 10px;
+		}
+		.distRect {
+			fill: #cccccc;
+			stroke: #333333;
+			stroke-width: 1px;
+		}
+		.larger {
+			font-size: 23px;
+		}
+
+		#stimLeft {
+			margin: 5px 5px;
+		}
+		#stimRight {
+			margin: 5px 5px;
+		}
+
+		#divLeft {
+			border: solid 4px #eeeeee;
+		}
+		#divRight {
+			border: solid 4px #eeeeee;
+		}
+
+		#confirmButton
+		{
+			font-size: 14px;
+			height: 60px;
+			width: 110px;
+		}
+
+		#divColorScale {
+			text-align: center;
+		}
+
+	</style>
+</head>
+
+<body>
+	<div style="width: 600px; margin:0 auto;">
+		<div style="font-weight: bold; font-size: 20px; background-color: #eeeeee; border: solid 1px black; width: 100%; height: 40px; padding-top: 20px; padding-bottom: 5px; padding: 5px 5px">
+			Instructions (2 / 4)
+		</div>
+
+		<div style="height: 350px">
+
+			<p>You will see different types of charts in this experiment. Your task will always be the same: select the chart that has <span id="statistic"></span>.
+
+			<p>Here are other examples. The correct choice here is highlighted in red.
+
+			<p><svg width="600" height="150"></svg>
+
+		</div>
+
+		<p><table width="100%">
+			<tr>
+				<td align="left"> <a id="prevLink" href="tutorial1.html">Previous</td>
+				<td align="right"><a id="nextLink" href="tutorial3.html">Next</td>
+			</tr>
+		</table>
+	</div>
+
+	<script type="text/javascript">
+		var urlParams = new URLSearchParams(window.location.search);
+		var statistic = urlParams.get('statistic');
+		if (!statistic) {
+			statistic = 'mean';
+		}
+		plotExample(statistic, VisType.VIS_AREA, true);
+
+		console.log('statistic ' + statistic);
+
+		document.getElementById("prevLink").setAttribute('href', 'tutorial1.html?statistic=' + statistic);
+		document.getElementById("nextLink").setAttribute('href', 'tutorial3.html?statistic=' + statistic);
+
+	</script>
+
+
+</body>
+
+</html>
