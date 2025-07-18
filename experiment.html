@@ -139,11 +139,24 @@
     <script>
 
         // Define block configurations
-        var blockConfigs = [
-            { mode: 'mean', classNum: 15, visType: VisType.VIS_BARS, trialCount: 10, exposureTime: 1000 },
-            { mode: 'std', classNum: 15, visType: VisType.VIS_LINES, trialCount: 10, exposureTime: 1000 },
-            { mode: 'mean', classNum: 15, visType: VisType.VIS_AREA, trialCount: 10, exposureTime: 1000 }
+        const BLOCK_CONFIGS = [
+            // Exposure 200 ms
+            { visType: VisType.VIS_DOTS, mode: 'mean', exposureTime: 500, trialCount: 40 },
+            { visType: VisType.VIS_BARS, mode: 'mean', exposureTime: 500, trialCount: 40 },
+            { visType: VisType.VIS_AREA, mode: 'mean', exposureTime: 500, trialCount: 40 },
+
+            // Exposure 1000 ms
+            { visType: VisType.VIS_DOTS, mode: 'mean', exposureTime: 1500, trialCount: 40 },
+            { visType: VisType.VIS_BARS, mode: 'mean', exposureTime: 1500, trialCount: 40 },
+            { visType: VisType.VIS_AREA, mode: 'mean', exposureTime: 1500, trialCount: 40 },
+
+            // Exposure 3000 ms
+            { visType: VisType.VIS_DOTS, mode: 'mean', exposureTime: 4000, trialCount: 40 },
+            { visType: VisType.VIS_BARS, mode: 'mean', exposureTime: 4000, trialCount: 40 },
+            { visType: VisType.VIS_AREA, mode: 'mean', exposureTime: 4000, trialCount: 40 }
         ];
+
+        var blockConfigs = BLOCK_CONFIGS;
 
         // configuration for training
         var trainingConfigs = [

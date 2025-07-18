@@ -7,6 +7,7 @@ const VisType = Object.freeze({
     VIS_BARS: 'bar',
     VIS_LINES: 'line',
     VIS_AREA: 'area',
+    VIS_DOTS: 'dot',
 });
 
 function VisSpeedStim(classNum)
@@ -79,6 +80,9 @@ VisSpeedStim.prototype.render = function(g, w, h, visType)
         break;
     case VisType.VIS_AREA:
         this.renderArea(gg, w, h);
+        break;
+    case VisType.VIS_DOTS:
+        this.renderDots(gg, w, h);
         break;
     }
 }
@@ -181,6 +185,45 @@ VisSpeedStim.prototype.renderBars = function(g, w, h, gapW)
                 return h*obj.yScale(d);
             })
     })(selection, barW, gapW, this);
+}
+
+VisSpeedStim.prototype.renderDots = function(g, w, h, gapW) {
+    var MIN_GAP = 2;
+    var MAX_TOTAL_GAP_RATIO = 0.05;
+
+    var gapCount = Math.max(0, this.classNum - 1);
+    var maxTotalGap = w * MAX_TOTAL_GAP_RATIO;
+
+    // Compute adaptive gap width
+    if (gapCount === 0) {
+        gapW = 0;
+    } else {
+        var idealGap = maxTotalGap / gapCount;
+        gapW = Math.max(MIN_GAP, idealGap);
+    }
+
+    // Compute x-position spacing
+    var dotSpacing = (w - (gapCount * gapW)) / this.classNum;
+
+    var selection = g.selectAll('circle.dot').data(this.data);
+    selection = selection.enter()
+        .append('circle')
+        .merge(selection);
+
+    (function(_selection, _dotSpacing, _gapW, obj) {
+        _selection
+            .attr('class', 'dot')
+            .attr('cx', function(d, i) {
+                return i * (_dotSpacing + _gapW) + _dotSpacing / 2; // center dots
+            })
+            .attr('cy', function(d) {
+                var y = h * obj.yScale(d);
+                return h - y; // flip for SVG coordinate system
+            })
+            .attr('r', function() {
+                return Math.max(3, _dotSpacing * 0.4); // adaptive radius (or fixed 3px)
+            });
+    })(selection, dotSpacing, gapW, this);
 }
 
 VisSpeedStim.prototype.perturb = function()
