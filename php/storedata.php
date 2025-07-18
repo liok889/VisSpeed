@@ -67,13 +67,13 @@ if (!isset($_SESSION['datastored']) && mysqli_query($conn, $sql))
 
         mysqli_query($conn, $updateSql);
     }
-}
 
     $_SESSION['datastored'] = true;
     echo json_encode(["status" => "success"]);
     mysqli_close($conn);
     exit(0);
-} else if (!isset($_SESSION['datastored'])) {
+}
+else if (!isset($_SESSION['datastored'])) {
     $mysqlError = mysqli_error($conn);
 
     // Backup data
@@ -84,7 +84,8 @@ if (!isset($_SESSION['datastored']) && mysqli_query($conn, $sql))
     mysqli_close($conn);
     $_SESSION['datastored'] = true;
     exit(0);
-} else {
+}
+else {
     echo json_encode(["status" => "success"]);
     mysqli_close($conn);
     exit(0);
