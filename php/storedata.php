@@ -1,0 +1,77 @@
+<?php
+session_start();
+
+include 'checkmobile.php';
+
+if (!isset($_SESSION['user'])) {
+    echo json_encode(["status" => "failure", "reason" => "user unregistered"]);
+    exit(0);
+}
+
+$json_str = file_get_contents('php://input');
+$json_obj = json_decode($json_str);
+
+if ($json_obj == null) {
+    echo json_encode(["status" => "failure", "reason" => "invalid json"]);
+    exit(0);
+}
+
+include 'connect.php';
+
+$userid = $_SESSION['user'];
+$insert = [];
+
+foreach ($json_obj->experimentalData as $row) {
+    $jsonParam = json_encode($row);
+    $strParam = mysqli_real_escape_string($conn, $jsonParam);
+
+    // Escape strings for SQL
+    $selection = mysqli_real_escape_string($conn, $row->selection);
+    $visType = mysqli_real_escape_string($conn, $row->visType);
+    $mode = mysqli_real_escape_string($conn, $row->mode);
+
+    $insert[] = "(" .
+        $userid . ", " .
+        intval($row->blockNum) . ", " .
+        intval($row->trialNum) . ", " .
+        intval($row->correct) . ", " .
+        "'" . $selection . "', " .
+        "'" . $visType . "', " .
+        "'" . $mode . "', " .
+        floatval($row->delta) . ", " .
+        floatval($row->deltaSecondary) . ", " .
+        floatval($row->requestedDelta) . ", " .
+        intval($row->exposureTime) . ", " .
+        intval($row->fixationTime) . ", " .
+        intval($row->generationTime) . ", " .
+        intval($row->responseTime) . ", " .
+        "'" . $strParam . "'" .
+    ")";
+}
+
+$sql = "INSERT INTO trials
+(userid, blockNum, trialNum, correct, selection, visType, mode, delta, deltaSecondary, requestedDelta, exposureTime, fixationTime, generationTime, responseTime, parameters)
+VALUES " . implode(',', $insert);
+
+if (!isset($_SESSION['datastored']) && mysqli_query($conn, $sql)) {
+    $_SESSION['datastored'] = true;
+    echo json_encode(["status" => "success"]);
+    mysqli_close($conn);
+    exit(0);
+} else if (!isset($_SESSION['datastored'])) {
+    $mysqlError = mysqli_error($conn);
+
+    // Backup data
+    file_put_contents("backup/data_" . $userid . ".txt", $json_str);
+    file_put_contents("backup/error_" . $userid . ".txt", "SQL: " . $sql . "\n\nError: " . $mysqlError);
+
+    echo json_encode(["status" => "success", "reason" => "savedAsBackupFile: " . $mysqlError]);
+    mysqli_close($conn);
+    $_SESSION['datastored'] = true;
+    exit(0);
+} else {
+    echo json_encode(["status" => "success"]);
+    mysqli_close($conn);
+    exit(0);
+}
+?>
