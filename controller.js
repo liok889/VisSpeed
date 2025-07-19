@@ -4,7 +4,6 @@ var TRAINING = false;
 
 const ENGAGEMENT_MEAN_DELTA = 0.7;
 const ENGAGEMENT_STD_DELTA = 0.3;
-const ACCOMODATION_TRIAL = false;
 
 const SOUND_FEEDBACK = true;
 var audioCorrect, audioIncorrect;
@@ -16,7 +15,6 @@ if (SOUND_FEEDBACK)
 
 function BlockController(options)
 {
-    this.firstTrial = ACCOMODATION_TRIAL;
     this.options = options;
     this.data = [];
     this.mode = options.mode || 'mean';  // 'mean' or 'std'
@@ -27,7 +25,7 @@ function BlockController(options)
     this.classNum = options.classNum || 10;
 
     // how many trials so far
-    this.trialCount = (options.trialCount || 0) + (ACCOMODATION_TRIAL ? 1 : 0);
+    this.trialCount = (options.trialCount || 0);
     this.trialsShown = 0;
 
     this.width = options.width || 100;
@@ -139,6 +137,7 @@ BlockController.prototype.generateTrial = function()
     }
 
     this.curTrial = {
+        classNum: this.classNum,
         mode: this.mode,
         requestedDelta: delta,
         delta: actualDelta,
@@ -147,7 +146,13 @@ BlockController.prototype.generateTrial = function()
         trialNum: this.data.length+1,
         generationTime: Date.now() - generationTime,
         isEngagement: isEngagementTrial,
-        fixationTime: FIXATION_TIME
+        fixationTime: FIXATION_TIME,
+
+        // include raw statistics
+        mean1: this.stimPair.stim1.mean,
+        mean2: this.stimPair.stim2.mean,
+        std1: this.stimPair.stim1.std,
+        std2: this.stimPair.stim2.std,
     };
 
     if (FIXATION_TIME)
@@ -166,10 +171,10 @@ BlockController.prototype.generateTrial = function()
         this.showTrial();
     }
 };
+
 BlockController.prototype.getEngagementResults = function() {
     return this.engagementResults;
 };
-
 
 BlockController.prototype.nextTrial = function(isCorrect)
 {
@@ -222,26 +227,23 @@ BlockController.prototype.nextTrial = function(isCorrect)
 
     const oldDelta = this.delta;
     let direction;
-
-    if (!this.firstTrial) {
-        if (isCorrect)
-        {
-            // one down
-            this.delta = Math.max(this.minDelta, this.delta - this.stepSize);
-            direction = 'down';
-        } else
-        {
-            // three up
-            this.delta = Math.min(this.maxDelta, this.delta + 3 * this.stepSize);
-            direction = 'up';
-        }
-
-        if (this.lastDirection && direction !== this.lastDirection) {
-            this.reversals++;
-        }
-        this.lastDirection = direction;
+    if (isCorrect)
+    {
+        // one down
+        this.delta = Math.max(this.minDelta, this.delta - this.stepSize);
+        direction = 'down';
+    } else
+    {
+        // three up
+        this.delta = Math.min(this.maxDelta, this.delta + 3 * this.stepSize);
+        direction = 'up';
     }
-    this.firstTrial = false;
+
+    if (this.lastDirection && direction !== this.lastDirection) {
+        this.reversals++;
+    }
+    this.lastDirection = direction;
+
 
     // play sound
     if (SOUND_FEEDBACK) {
@@ -370,8 +372,6 @@ BlockController.prototype.showTrial = function(options)
 
 BlockController.prototype.recordSelection = function()
 {
-
-
     if (this.selected)
     {
         d3.select("#enterPrompt").style('visibility', 'hidden');
@@ -570,10 +570,10 @@ ExperimentControl.prototype.calculateStimulusAccuracy = function()
     return correctCount / this.data.length;
 }
 
-ExperimentControl.prototype.storeBlockResponses = function(index) {
+ExperimentControl.prototype.storeBlockResponses = function(index)
+{
     var blockData = this.currentBlock.data;
-    // ignore first trial, accomodation
-    for (var i = 1; i < blockData.length; i++) {
+    for (var i = 0; i < blockData.length; i++) {
         blockData[i].blockNum = this.currentIndex + 1;
         this.data.push(blockData[i]);
     }

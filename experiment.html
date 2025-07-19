@@ -197,11 +197,18 @@
             blockConfigs = trainingConfigs
         }
 
+        var TEST = urlParams.get('test');
         for (var i=0; i<blockConfigs.length; i++)
         {
+
             blockConfigs[i].engagementCount=ENGAGEMENT_PER_BLOCK || 0;
             if (STATISTIC) {
                 blockConfigs[i].mode = STATISTIC;
+            }
+            if (TEST) {
+                blockConfigs[i].trialCount=2;
+                blockConfigs[i].engagementCount=0;
+
             }
         }
 
@@ -319,7 +326,7 @@
         {
             d3.select("#prompt").text("Experiment Complete!");
 
-            if (TRAINING) {
+            if (TRAINING && !TEST) {
                 window.location.replace(FINISHED_TRAINING_URL + STATISTIC);
             }
             else {
@@ -333,7 +340,7 @@
 
                 sendData(payload, 3, function (success)
                 {
-                    if (FINISHED_REDICTED_URL)
+                    if (FINISHED_REDICTED_URL && !TEST)
     				{
     					window.location.replace(FINISHED_REDICTED_URL);
     				}
