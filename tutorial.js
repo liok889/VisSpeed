@@ -10,9 +10,10 @@ var H = 100;
 var GAP = 100;
 var PAD=25;
 
+var REFRESH_RATE = 1900;
+
 function plotExample(statistic, visType, easy, dontRefresh)
 {
-    var REFRESH_RATE = 2200;
 
     var refresh = !dontRefresh;
     if (statistic == 'mean') {
@@ -37,6 +38,12 @@ function plotExample(statistic, visType, easy, dontRefresh)
     }
     else {
         pair.optimize(undefined, easy ? EASY_STD : MEDIUM_STD);
+    }
+
+    if (!visType) {
+        var visList = [VisType.VIS_BARS, VisType.VIS_AREA, VisType.VIS_DOTS];
+        var i = Math.floor(Math.random() * visList.length);
+        visType = visList[i];
     }
 
     pair.plotPair(

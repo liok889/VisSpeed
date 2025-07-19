@@ -445,4 +445,10 @@ StimulusPair.prototype.optimize = function(deltaMean, deltaStd)
         //console.log('t: ' + t + ', solDiff: ' + (solutionDiff) + ', 2nd: ' + _solutionDiff);
         t *= ALPHA;
     }
+    // randomly swap
+    if (Math.random() > 0.5) {
+        var t = this.stim1;
+        this.stim1=this.stim2;
+        this.stim2=t;
+    }
 }
