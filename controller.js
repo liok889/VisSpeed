@@ -148,11 +148,15 @@ BlockController.prototype.generateTrial = function()
         isEngagement: isEngagementTrial,
         fixationTime: FIXATION_TIME,
 
-        // include raw statistics
+        // include statistics and raw data
         mean1: this.stimPair.stim1.mean,
         mean2: this.stimPair.stim2.mean,
         std1: this.stimPair.stim1.std,
         std2: this.stimPair.stim2.std,
+
+        data1: this.stimPair.stim1.data,
+        data2: this.stimPair.stim2.data,
+
     };
 
     if (FIXATION_TIME)

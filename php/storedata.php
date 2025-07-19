@@ -30,6 +30,7 @@ foreach ($json_obj->experimentalData as $row) {
     $visType = mysqli_real_escape_string($conn, $row->visType);
     $mode = mysqli_real_escape_string($conn, $row->mode);
 
+
     $insert[] = "(" .
         $userid . ", " .
         intval($row->blockNum) . ", " .
@@ -45,12 +46,16 @@ foreach ($json_obj->experimentalData as $row) {
         intval($row->fixationTime) . ", " .
         intval($row->generationTime) . ", " .
         intval($row->responseTime) . ", " .
+        floatval($row->mean1 ?? 0) . ", " .
+        floatval($row->mean2 ?? 0) . ", " .
+        floatval($row->std1 ?? 0) . ", " .
+        floatval($row->std2 ?? 0) . ", " .
         "'" . $strParam . "'" .
     ")";
 }
 
 $sql = "INSERT INTO response
-(userid, blockNum, trialNum, correct, selection, visType, mode, delta, deltaSecondary, requestedDelta, exposureTime, fixationTime, generationTime, responseTime, parameters)
+(userid, blockNum, trialNum, correct, selection, visType, mode, delta, deltaSecondary, requestedDelta, exposureTime, fixationTime, generationTime, responseTime, mean1, mean2, std1, std2, parameters)
 VALUES " . implode(',', $insert);
 
 if (!isset($_SESSION['datastored']) && mysqli_query($conn, $sql))
