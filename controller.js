@@ -4,10 +4,19 @@ var TRAINING = false;
 
 const ENGAGEMENT_MEAN_DELTA = 0.7;
 const ENGAGEMENT_STD_DELTA = 0.3;
+const ACCOMODATION_TRIAL = false;
+
+const SOUND_FEEDBACK = true;
+var audioCorrect, audioIncorrect;
+if (SOUND_FEEDBACK)
+{
+    audioCorrect = new Audio('sound_correct.wav');
+    audioIncorrect = new Audio('sound_error.wav');
+}
 
 function BlockController(options)
 {
-    this.firstTrial = true;
+    this.firstTrial = ACCOMODATION_TRIAL;
     this.options = options;
     this.data = [];
     this.mode = options.mode || 'mean';  // 'mean' or 'std'
@@ -18,7 +27,7 @@ function BlockController(options)
     this.classNum = options.classNum || 10;
 
     // how many trials so far
-    this.trialCount = (options.trialCount || 0) + 1;
+    this.trialCount = (options.trialCount || 0) + (ACCOMODATION_TRIAL ? 1 : 0);
     this.trialsShown = 0;
 
     this.width = options.width || 100;
@@ -52,18 +61,18 @@ function BlockController(options)
     this.generateTrial();
 
     // add a callback to listen to keyboard event
-    (function(object, _options) {
+    (function(_this, _options) {
     d3.select(document)
         .on('keydown', function() {
-             if (d3.event.keyCode === 13)
+             if (d3.event.keyCode == 32 || d3.event.keyCode === 13)
              {
                  // enter, advance to next trial
-                 var result = object.recordSelection();
+                 var result = _this.recordSelection();
                  if (result === null) {
                      // no selection, do nothing
                  }
                  else {
-                     var done = object.nextTrial(result);
+                     var done = _this.nextTrial(result);
                      if (done)
                      {
                          console.log('block complete');
@@ -73,7 +82,17 @@ function BlockController(options)
                      }
                  }
              }
-        })
+             else {
+                 if (d3.event.keyCode == 37) {
+                     // select left
+                     _this.select('left');
+                }
+                else if (d3.event.keyCode == 39) {
+                    // select right
+                    _this.select('right');
+                }
+             }
+        });
     })(this, options)
 }
 
@@ -156,6 +175,9 @@ BlockController.prototype.nextTrial = function(isCorrect)
 {
     if (!isCorrect && TRAINING)
     {
+        if (SOUND_FEEDBACK) {
+            audioIncorrect.play();
+        }
         // remove active selectors
         d3.selectAll("rect.selector")
             .style('stroke', null)
@@ -221,6 +243,11 @@ BlockController.prototype.nextTrial = function(isCorrect)
     }
     this.firstTrial = false;
 
+    // play sound
+    if (SOUND_FEEDBACK) {
+        if (isCorrect) audioCorrect.play(); else audioIncorrect.play();
+    }
+
     if (this.trialCount > 0 && this.trialsShown >= (this.trialCount + this.engagementCount))
     {
         return true; // block is complete
@@ -251,6 +278,35 @@ BlockController.prototype.clearTrial = function() {
     stim2Group.selectAll("*").remove();
 }
 
+BlockController.prototype.select = function(which)
+{
+    const stim1Group = d3.select("#stimulusGroup1");
+    const stim2Group = d3.select("#stimulusGroup2");
+
+    if (which == 'left' || which == 1)
+    {
+        stim1Group.select('rect.selector')
+            .style('stroke', 'red')
+            .classed('activeSelector', true);
+        stim2Group.select('rect.selector')
+            .style('stroke', null)
+            .classed('activeSelector', false);
+        this.selected = 1;
+        d3.select("#enterPrompt").style('visibility', 'visible');
+
+    }
+    else if (which == 'right' || which == 2)
+    {
+        stim1Group.select('rect.selector')
+            .style('stroke', null)
+            .classed('activeSelector', false);
+        stim2Group.select('rect.selector')
+            .style('stroke', 'red')
+            .classed('activeSelector', true);
+        this.selected = 2;
+        d3.select("#enterPrompt").style('visibility', 'visible');
+    }
+}
 BlockController.prototype.showTrial = function(options)
 {
     this.trialsShown++;
@@ -284,27 +340,11 @@ BlockController.prototype.showTrial = function(options)
         _stim1Group.select("rect.selector")
             .on('mousedown', function()
             {
-                _stim1Group.select('rect.selector')
-                    .style('stroke', 'red')
-                    .classed('activeSelector', true);
-                _stim2Group.select('rect.selector')
-                    .style('stroke', null)
-                    .classed('activeSelector', false);
-                _this.selected = 1;
-
-                d3.select("#enterPrompt").style('visibility', 'visible');
+                _this.select('left');
             });
         _stim2Group.select("rect.selector")
             .on('mousedown', function() {
-                _stim1Group.select('rect.selector')
-                    .style('stroke', null)
-                    .classed('activeSelector', false);
-                _stim2Group.select('rect.selector')
-                    .style('stroke', 'red')
-                    .classed('activeSelector', true);
-                _this.selected = 2;
-
-                d3.select("#enterPrompt").style('visibility', 'visible');
+                _this.select('right');
             });
 
         if (_duration > 0)
@@ -420,7 +460,7 @@ ExperimentControl.prototype.setBreakInterval = function(breakInterval) {
 }
 
 ExperimentControl.prototype.start = function() {
-    var CROSS_SIZE = 10;
+    var CROSS_SIZE = 20;
     var CROSS_THICKNESS = 3;
 
     if (this.svg) {

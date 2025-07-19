@@ -40,17 +40,18 @@ function plotExample(statistic, visType, easy, dontRefresh)
         pair.optimize(undefined, easy ? EASY_STD : MEDIUM_STD);
     }
 
-    if (!visType) {
+    var _visType = visType;
+    if (!_visType) {
         var visList = [VisType.VIS_BARS, VisType.VIS_AREA, VisType.VIS_DOTS];
         var i = Math.floor(Math.random() * visList.length);
-        visType = visList[i];
+        _visType = visList[i];
     }
 
     pair.plotPair(
         g1,
         g2,
         W ,H,
-        visType || VisType.VIS_BARS
+        _visType || VisType.VIS_BARS
     );
     pair.highlightHigher();
 
