@@ -1,6 +1,7 @@
 // 800 miliseconds of fixation
 var FIXATION_TIME = 800;
 var TRAINING = false;
+var INDEFINITE_EXPOSURE = false;
 
 const ENGAGEMENT_MEAN_DELTA = 0.7;
 const ENGAGEMENT_STD_DELTA = 0.3;
@@ -353,7 +354,7 @@ BlockController.prototype.showTrial = function(options)
                 _this.select('right');
             });
 
-        if (_duration > 0)
+        if (_duration > 0 && !INDEFINITE_EXPOSURE)
         {
             _this.timeout = setTimeout(() => {
                 /*
