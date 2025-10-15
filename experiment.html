@@ -141,19 +141,19 @@
         // Define block configurations
         const BLOCK_CONFIGS = [
             // Exposure 200 ms
-            { visType: VisType.VIS_DOTS, mode: 'mean', exposureTime: 500, trialCount: 40 },
-            { visType: VisType.VIS_BARS, mode: 'mean', exposureTime: 500, trialCount: 40 },
-            { visType: VisType.VIS_AREA, mode: 'mean', exposureTime: 500, trialCount: 40 },
+            { visType: VisType.VIS_DOTS, classNum: 15, mode: 'std', exposureTime: 500, trialCount: 40 },
+            { visType: VisType.VIS_BARS, classNum: 15, mode: 'std', exposureTime: 500, trialCount: 40 },
+            { visType: VisType.VIS_AREA, classNum: 15, mode: 'std', exposureTime: 500, trialCount: 40 },
 
             // Exposure 1000 ms
-            { visType: VisType.VIS_DOTS, mode: 'mean', exposureTime: 1500, trialCount: 40 },
-            { visType: VisType.VIS_BARS, mode: 'mean', exposureTime: 1500, trialCount: 40 },
-            { visType: VisType.VIS_AREA, mode: 'mean', exposureTime: 1500, trialCount: 40 },
+            { visType: VisType.VIS_DOTS, classNum: 15, mode: 'std', exposureTime: 1500, trialCount: 40 },
+            { visType: VisType.VIS_BARS, classNum: 15, mode: 'std', exposureTime: 1500, trialCount: 40 },
+            { visType: VisType.VIS_AREA, classNum: 15, mode: 'std', exposureTime: 1500, trialCount: 40 },
 
             // Exposure 3000 ms
-            { visType: VisType.VIS_DOTS, mode: 'mean', exposureTime: 4000, trialCount: 40 },
-            { visType: VisType.VIS_BARS, mode: 'mean', exposureTime: 4000, trialCount: 40 },
-            { visType: VisType.VIS_AREA, mode: 'mean', exposureTime: 4000, trialCount: 40 }
+            { visType: VisType.VIS_DOTS, classNum: 15, mode: 'std', exposureTime: 4000, trialCount: 40 },
+            { visType: VisType.VIS_BARS, classNum: 15, mode: 'std', exposureTime: 4000, trialCount: 40 },
+            { visType: VisType.VIS_AREA, classNum: 15, mode: 'std', exposureTime: 4000, trialCount: 40 }
         ];
 
         var blockConfigs = BLOCK_CONFIGS;
@@ -177,7 +177,7 @@
         var PADDING = 20;
 
         // default statistic to test
-        var STATISTIC = 'mean';
+        var STATISTIC = null; //'mean';
 
         // number of engagement checks per block
         var ENGAGEMENT_PER_BLOCK = 2;
@@ -307,9 +307,18 @@
 
         // === Update prompt dynamically ===
         function updatePrompt(mode) {
-            var text = (mode === 'mean') ?
-                "Select the chart with the higher average value" :
-                "Select the chart that shows more variation";
+            var text;
+            switch (mode) {
+            case 'mean':
+                text = "Select the chart with the higher average value";
+                break;
+            case 'std':
+                text = "Select the chart with the higher average value";
+                break;
+            case 'slope':
+                text = "select the chart with the more increasing trend";
+                break;
+            }
             d3.select("#prompt").text(text);
         }
 

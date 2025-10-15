@@ -3,10 +3,25 @@ var FIXATION_TIME = 800;
 var TRAINING = false;
 var INDEFINITE_EXPOSURE = false;
 
-const ENGAGEMENT_MEAN_DELTA = 0.7;
-const ENGAGEMENT_STD_DELTA = 0.3;
+const ENGAGEMENT_DELTA = {
+    mean: 0.7,
+    std: 0.3,
+    slope: 0.5
+};
 
-const SOUND_FEEDBACK = true;
+const SECONDARY_STAT = {
+    mean: 'std',
+    std: 'mean',
+    slope: 'intercept',
+};
+
+const STAIRCASE = {
+    mean: {initialDelta: 0.25, stepSize: 0.02, minDelta: 0.005, maxDelta: 0.9},
+    std: {initialDelta: 0.15, stepSize: 0.01, minDelta: 0.001, maxDelta: 0.5},
+    slope: {initialDelta: 0.5, stepSize: 0.02, minDelta: 0.01, maxDelta: 1.0}
+}
+
+const SOUND_FEEDBACK = false;
 var audioCorrect, audioIncorrect;
 if (SOUND_FEEDBACK)
 {
@@ -19,10 +34,10 @@ function BlockController(options)
     this.options = options;
     this.data = [];
     this.mode = options.mode || 'mean';  // 'mean' or 'std'
-    this.stepSize = options.stepSize || 0.02;
-    this.minDelta = options.minDelta || 0.001;
-    this.maxDelta = options.maxDelta || 1.0;
-    this.initialDelta = options.initialDelta || 0.3;
+    this.initialDelta = options.initialDelta || STAIRCASE[this.mode].initialDelta;
+    this.stepSize = options.stepSize || STAIRCASE[this.mode].stepSize;
+    this.minDelta = options.minDelta || STAIRCASE[this.mode].minDelta;
+    this.maxDelta = options.maxDelta || STAIRCASE[this.mode].maxDelta;
     this.classNum = options.classNum || 10;
 
     // how many trials so far
@@ -98,7 +113,7 @@ function BlockController(options)
 BlockController.prototype.generateTrial = function()
 {
     var generationTime = Date.now();
-    var delta, actualDelta, actualSecondaryDelta;
+    var actualDelta, actualSecondaryDelta;
 
     var currentIndex = this.data.length;
     var isEngagementTrial = false;
@@ -107,35 +122,19 @@ BlockController.prototype.generateTrial = function()
         this.engagementIndices.shift(); // remove it so it's not reused
     }
 
-    // mode
-    if (this.mode == 'mean')
-    {
-        // first trial in block is accomodation, not measured
-        delta = isEngagementTrial || this.data.length==0 ? ENGAGEMENT_MEAN_DELTA : this.delta;
-        this.stimPair.optimize(delta, undefined);
-        if (this.stimPair.stim1.mean > this.stimPair.stim2.mean) {
-            this.correct = 1;
-        }
-        else {
-            this.correct = 2;
-        }
-        actualDelta = Math.abs(this.stimPair.stim1.mean-this.stimPair.stim2.mean);
-        actualSecondaryDelta = Math.abs(this.stimPair.stim1.std-this.stimPair.stim2.std);
+    var delta = isEngagementTrial || this.data.length==0 ? ENGAGEMENT_DELTA[this.mode] : this.delta;
+    var primary= this.mode;
+    var secondary = SECONDARY_STAT[this.mode]
 
+    this.stimPair.optimizeEnter(primary, secondary, delta);
+    if (this.stimPair.stim1[primary] > this.stimPair.stim2[primary]) {
+        this.correct = 1;
     }
     else {
-        // first trial in block is accomodation
-        delta = isEngagementTrial || this.data.length==0 ? ENGAGEMENT_STD_DELTA : this.delta;
-        this.stimPair.optimize(undefined, delta);
-        if (this.stimPair.stim1.std > this.stimPair.stim2.std) {
-            this.correct = 1;
-        }
-        else {
-            this.correct = 2;
-        }
-        actualDelta = Math.abs(this.stimPair.stim1.std-this.stimPair.stim2.std);
-        actualSecondaryDelta = Math.abs(this.stimPair.stim1.mean-this.stimPair.stim2.mean);
+        this.correct = 2;
     }
+    actualDelta = Math.abs(this.stimPair.stim1[primary]-this.stimPair.stim2[primary]);
+    actualSecondaryDelta = Math.abs(this.stimPair.stim1[secondary]-this.stimPair.stim2[secondary]);
 
     this.curTrial = {
         classNum: this.classNum,

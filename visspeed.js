@@ -19,9 +19,11 @@ function VisSpeedStim(classNum)
 
 VisSpeedStim.prototype.random = function()
 {
+    var D_RANGE = MAX_D-MIN_D;
+
     this.data = [];
     for (var i=0; i<this.classNum; i++) {
-        var r = Math.random() * (MAX_D-MIN_D) + MIN_D;
+        var r = Math.random() * D_RANGE + MIN_D;
         this.data.push(r);
     }
     this.findMinMax(true);
@@ -264,6 +266,43 @@ VisSpeedStim.prototype.revert = function()
     }
 }
 
+// compute OLS slope/intercept, Pearson r, R^2
+function computeLinearTrend(yArray) {
+    const n = yArray.length;
+    if (n < 2) return null;
+
+    // x scaled 0..1
+    const xs = Array.from({length: n}, (_, i) => n === 1 ? 0 : i / (n - 1));
+    const ys = yArray;
+
+    // means
+    let meanX = 0, meanY = 0;
+    for (let i = 0; i < n; i++) { meanX += xs[i]; meanY += ys[i]; }
+    meanX /= n; meanY /= n;
+
+    // covariance and variance
+    let covXY = 0, varX = 0, varY = 0;
+    for (let i = 0; i < n; i++) {
+        const dx = xs[i] - meanX;
+        const dy = ys[i] - meanY;
+        covXY += dx * dy;
+        varX += dx * dx;
+        varY += dy * dy;
+    }
+
+    const slope = varX === 0 ? 0 : covXY / varX;
+    const intercept = meanY - slope * meanX;
+    const r = (varX === 0 || varY === 0) ? 0 : covXY / Math.sqrt(varX * varY);
+    const rsq = r * r;
+
+    return {
+        slope: slope,
+        intercept: intercept,
+        r: r,
+        rsq: rsq
+    };
+}
+
 VisSpeedStim.prototype.computeStats = function()
 {
     this.mean = 0;
@@ -277,6 +316,11 @@ VisSpeedStim.prototype.computeStats = function()
         this.std += Math.pow(this.data[i] - this.mean, 2);
     }
     this.std = Math.sqrt(this.std/(this.data.length-1));
+
+    // compute linear trend
+    var trend = computeLinearTrend(this.data);
+    this.slope = trend.slope;
+    this.intercept = trend.intercept;
 }
 
 function StimulusPair(classNum)
@@ -309,30 +353,41 @@ StimulusPair.prototype.highlightHigher = function()
     var rect = null;
     if (this.statistic)
     {
-        if (this.statistic=='mean') {
-            if (this.stim1.mean > this.stim2.mean && this.stim1.g) {
-                rect = this.stim1.g.select('rect.selector');
-            }
-            else if (this.stim2.g) {
-                rect = this.stim2.g.select('rect.selector');
-            }
+        var statistic1 = this.stim1[this.statistic];
+        var statistic2 = this.stim2[this.statistic];
+        if (statistic1 > statistic2 && this.stim1.g)
+        {
+            rect = this.stim1.g.select('rect.selector');
         }
-        else {
-            if (this.stim1.std > this.stim2.std && this.stim1.g) {
-                rect = this.stim1.g.select('rect.selector');
-            }
-            else if (this.stim2.g) {
-                rect = this.stim2.g.select('rect.selector');
-            }
+        else if (this.stim2.g) {
+            rect = this.stim2.g.select('rect.selector');
         }
     }
+
     if (rect) {
         rect
             .style('stroke', 'red')
             .style('stroke-width', '6px');
     }
 }
-StimulusPair.prototype.optimize = function(deltaMean, deltaStd)
+
+StimulusPair.prototype.optimizeEnter = function(mainStat, secondStat, delta)
+{
+    console.log("optimize: " + delta);
+    return this.optimize(
+        function(s1, s2) {
+            return Math.abs(s1[mainStat]-s2[mainStat]);
+        },
+
+        function(s1, s2) {
+            var _diff = Math.abs(s1[secondStat]-s2[secondStat]);
+            return _diff;
+        },
+        delta, mainStat
+    );
+}
+
+StimulusPair.prototype.optimize = function(mainObj, secondObj, delta, stat)
 {
     var T_INIT = 1;
     var T_END = 0.0001;     // end temperature
@@ -349,18 +404,9 @@ StimulusPair.prototype.optimize = function(deltaMean, deltaStd)
     var s2 = this.stim2;
 
     var solution = [s1, s2];
-    var solutionDiff, _solutionDiff;
+    var solutionDiff = Math.abs( mainObj(s1, s2) - delta );
+    var _solutionDiff = secondObj(s1, s2);
 
-    if (deltaMean !== undefined)
-    {
-        this.statistic = 'mean';
-        solutionDiff = Math.abs(Math.abs(s1.mean - s2.mean)-deltaMean);
-        _solutionDiff = Math.abs(s1.std-s2.std);
-    } else {
-        this.statistic = 'std';
-        solutionDiff = Math.abs(Math.abs(s1.std - s2.std)-deltaStd);
-        _solutionDiff = Math.abs(s1.mean-s2.mean);
-    }
     var cost = Number.MAX_VALUE;
 
     while (t>=T_END)
@@ -373,9 +419,12 @@ StimulusPair.prototype.optimize = function(deltaMean, deltaStd)
             var index = Math.random() > 0.5 ? 1 : 0;
             solution[index].perturb();
 
-            var diff, tolerance, _diff;
+            var diff = Math.abs( mainObj(s1, s2) - delta );
+            var _diff = secondObj(s1, s2);
+            var tolerance = 0;
 
             // test solution
+            /*
             if (deltaMean !== undefined)
             {
                 // test the mean difference between the two solutions
@@ -392,6 +441,7 @@ StimulusPair.prototype.optimize = function(deltaMean, deltaStd)
                 _diff = Math.abs(s1.mean-s2.mean);
                 tolerance = STD_TOLERANCE;
             }
+            */
 
             var better = false;
             if (false && solutionDiff <= tolerance)
@@ -442,9 +492,11 @@ StimulusPair.prototype.optimize = function(deltaMean, deltaStd)
             }
 
         }
-        //console.log('t: ' + t + ', solDiff: ' + (solutionDiff) + ', 2nd: ' + _solutionDiff);
+        console.log('req: ' + delta.toFixed(5) + ', 1st: ' + (solutionDiff).toFixed(5) + ', 2nd: ' + _solutionDiff.toFixed(5));
         t *= ALPHA;
     }
+    console.log('s1: ' + s1[stat].toFixed(5) + ', s2: ' + s2[stat].toFixed(5));
+
     // randomly swap
     if (Math.random() > 0.5) {
         var t = this.stim1;
