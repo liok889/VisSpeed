@@ -1,18 +1,18 @@
 // 800 miliseconds of fixation
-var FIXATION_TIME = 800;
+var FIXATION_TIME = 600;
 var TRAINING = false;
 var INDEFINITE_EXPOSURE = false;
 
 const ENGAGEMENT_DELTA = {
     mean: 0.7,
     std: 0.3,
-    slope: 0.5
+    slope: 0.8
 };
 
 const SECONDARY_STAT = {
     mean: 'std',
     std: 'mean',
-    slope: 'intercept',
+    slope: 'mean',
 };
 
 const STAIRCASE = {
@@ -546,16 +546,18 @@ ExperimentControl.prototype.nextBlock = function(returnFromBreak) {
     return false;
 };
 
-ExperimentControl.prototype.showBreakModal = function(remainingBlocks) {
+ExperimentControl.prototype.showBreakModal = function(remainingBlocks, ) {
     const modal = document.getElementById("breakModal");
     const message = document.getElementById("breakMessage");
     const button = document.getElementById("continueButton");
 
+    /*
     message.innerHTML =
-        this.breakMessage +
-        "<br><br>You have <b>" +
+        //this.breakMessage +
+        "<br>You have <b>" +
         remainingBlocks +
         "</b> blocks remaining.";
+    */
 
     modal.style.display = "flex";
 
@@ -604,4 +606,15 @@ ExperimentControl.prototype.getEngagementSummary = function()
 
 ExperimentControl.prototype.getData = function() {
     return this.data;
+}
+
+function shuffle(array) {
+	var i, j;
+	for (i = array.length - 1; i > 0; i--) {
+		j = Math.floor(Math.random() * (i + 1));
+		var temp = array[i];
+		array[i] = array[j];
+		array[j] = temp;
+	}
+	return array;   // returns the same reference for convenience
 }

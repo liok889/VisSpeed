@@ -119,24 +119,57 @@
         </div>
 
         <!-- Progress Bar -->
+        <!--
         <div id="progressContainer">
             <svg id="svgProgress" width="200" height="20">
                 <rect id="rectComplete" x="0" y="0" width="0" height="20" fill="#72a7fc"></rect>
                 <rect id="rectRemaining" x="0" y="0" width="200" height="20" fill="#dddddd"></rect>
             </svg>
         </div>
+        -->
     </div>
 
     <!-- Break Modal -->
     <div id="breakModal">
         <div id="breakContent">
-            <h3>Take a Break</h3>
+            <h3>Feel free to rest your eyes</h3>
             <p id="breakMessage"></p>
-            <button id="continueButton">Continue</button>
+            <p>
+            <p><span id="percentComplete"></span><br>
+            <svg id="svgProgress" width="200" height="20">
+                    <rect id="rectComplete" x="0" y="0" width="0" height="20" fill="#72a7fc"></rect>
+                    <rect id="rectRemaining" x="0" y="0" width="200" height="20" fill="#dddddd"></rect>
+            </svg>
+            <p><button id="continueButton">Continue</button>
         </div>
     </div>
 
     <script>
+        var urlParams = new URLSearchParams(window.location.search);
+        var STATISTIC = urlParams.get('statistic');
+        if (!STATISTIC) {
+            STATISTIC = 'mean';
+        }
+
+        const ORDERING = [
+            ['A', 'B', 'C'],
+            ['A', 'C', 'B'],
+            ['B', 'A', 'C'],
+            ['B', 'C', 'A'],
+            ['C', 'A', 'B'],
+            ['C', 'B', 'A']
+        ];
+        const VIS_MAP = {
+            A: VisType.VIS_DOTS,
+            B: VisType.VIS_BARS,
+            C: VisType.VIS_AREA
+        };
+
+        const BLOCK_SEED = [
+            { trialCount: 40, classNum: 20, exposureTime: 500 },
+            { trialCount: 40, classNum: 20, exposureTime: 1500},
+            { trialCount: 40, classNum: 20, exposureTime: 4000}
+        ];
 
         // Define block configurations
         const BLOCK_CONFIGS = [
@@ -156,13 +189,43 @@
             { visType: VisType.VIS_AREA, classNum: 15, mode: 'std', exposureTime: 4000, trialCount: 40 }
         ];
 
+        // assign default block configs
         var blockConfigs = BLOCK_CONFIGS;
+
+        // construct block configs based on the sequence
+        var SEQ = urlParams.get('seq');
+        if (SEQ) {
+            var blocks = [];
+            var orderingIndex = (parseInt(SEQ)-1) % ORDERING.length;
+            var ordering = ORDERING[orderingIndex];
+            for (var i=0; i<ordering.length; i++ ) {
+
+                var vis = VIS_MAP[ordering[i]];
+                var visBlock = [];
+                for (var j=0; j<BLOCK_SEED.length; j++) {
+                    visBlock.push(
+                        {
+                            visType: vis,
+                            mode: STATISTIC,
+                            classNum: BLOCK_SEED[j].classNum,
+                            exposureTime: BLOCK_SEED[j].exposureTime,
+                            trialCount: BLOCK_SEED[j].trialCount,
+                        }
+                    );
+                }
+                shuffle(visBlock);
+
+                blocks = blocks.concat(visBlock);
+            }
+            // override default block config
+            blockConfigs = blocks;
+        }
 
         // configuration for training
         var trainingConfigs = [
-            { mode: 'mean', classNum: 15, visType: VisType.VIS_BARS, trialCount: 6, exposureTime: 1500 },
-            { mode: 'mean', classNum: 15, visType: VisType.VIS_DOTS, trialCount: 6, exposureTime: 1500 },
-            { mode: 'mean', classNum: 15, visType: VisType.VIS_AREA, trialCount: 6, exposureTime: 1500 },
+            { mode: STATISTIC, classNum: 15, visType: VisType.VIS_BARS, trialCount: 6, exposureTime: 1500 },
+            { mode: STATISTIC, classNum: 15, visType: VisType.VIS_DOTS, trialCount: 6, exposureTime: 1500 },
+            { mode: STATISTIC, classNum: 15, visType: VisType.VIS_AREA, trialCount: 6, exposureTime: 1500 },
         ];
 
         // URLS
@@ -171,8 +234,8 @@
         var DATA_URL = "php/storedata.php";
 
         // === CONFIG layout ===
-        var W = 220;    // stimulus width
-        var H = 130;     // stimulus height
+        var W = 300;    // stimulus width
+        var H = 170;     // stimulus height
         var GAP = 110;  // gap between stimuli
         var PADDING = 20;
 
@@ -182,12 +245,6 @@
         // number of engagement checks per block
         var ENGAGEMENT_PER_BLOCK = 2;
         var BREAK_INTERVAL = 2;
-
-        var urlParams = new URLSearchParams(window.location.search);
-        var STATISTIC = urlParams.get('statistic');
-        if (!STATISTIC) {
-            STATISTIC = 'mean';
-        }
 
         // practice mode?s
         TRAINING = urlParams.get('training');
@@ -208,7 +265,6 @@
             if (TEST) {
                 blockConfigs[i].trialCount=2;
                 blockConfigs[i].engagementCount=0;
-
             }
         }
 
@@ -293,11 +349,16 @@
         }
 
         // === Update progress bar ===
-        function updateProgress() {
+        function updateProgress()
+        {
             completedTrials++;
+            var svg = d3.select("#svgProgress");
+
             var percent = completedTrials / totalTrials;
-            var barWidth = +d3.select("#svgProgress").attr('width'); // matches svgProgress width
+            var barWidth = +svg.attr('width'); // matches svgProgress width
             var completeWidth = percent * barWidth;
+
+            d3.select("#percentComplete").html( Math.min(100, Math.floor(percent*100)) +"% complete" );
 
             d3.select("#rectComplete").attr("width", completeWidth);
             d3.select("#rectRemaining")
@@ -316,7 +377,7 @@
                 text = "Select the chart with the higher average value";
                 break;
             case 'slope':
-                text = "select the chart with the more increasing trend";
+                text = "SSelect the chart with the more pronounced increasing trend";
                 break;
             }
             d3.select("#prompt").text(text);

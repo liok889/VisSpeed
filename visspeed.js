@@ -141,11 +141,12 @@ VisSpeedStim.prototype.renderArea = function(g, w, h) {
         .attr('class', 'area')
         .merge(areaPath)
         .attr('d', areaGen)
-        .attr('fill', '#69b3a2')
+        .attr('fill', '#0092d1')
         .attr('stroke', 'black')
         .attr('stroke-width', 1);
 
     areaPath.exit().remove();
+    this.renderLines(g, w, h);
 };
 
 VisSpeedStim.prototype.renderBars = function(g, w, h, gapW)
@@ -373,8 +374,11 @@ StimulusPair.prototype.highlightHigher = function()
 
 StimulusPair.prototype.optimizeEnter = function(mainStat, secondStat, delta)
 {
-    console.log("optimize: " + delta);
-    return this.optimize(
+    //console.log("optimize: " + delta);
+    this.optTime = new Date();
+    var hardLimit = mainStat == 'slope' ? [0.0, null] : null;
+
+    this.optimize(
         function(s1, s2) {
             return Math.abs(s1[mainStat]-s2[mainStat]);
         },
@@ -383,12 +387,29 @@ StimulusPair.prototype.optimizeEnter = function(mainStat, secondStat, delta)
             var _diff = Math.abs(s1[secondStat]-s2[secondStat]);
             return _diff;
         },
+        hardLimit,
         delta, mainStat
     );
+    this.optTime = (new Date()) - this.optTime;
+
 }
 
-StimulusPair.prototype.optimize = function(mainObj, secondObj, delta, stat)
+
+StimulusPair.prototype.optimize = function(mainObj, secondObj, hardConstraint, delta, stat)
 {
+     var testHardConstraint = function(stat) {
+        if (!hardConstraint) {
+            return true;
+        }
+        else {
+            if (hardConstraint[0] === null || stat >= hardConstraint[0]) {
+                if (hardConstraint[1] === null || stat <= hardConstraint[1]) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
     var T_INIT = 1;
     var T_END = 0.0001;     // end temperature
     var ALPHA = 0.9;      // cooling rate
@@ -397,8 +418,19 @@ StimulusPair.prototype.optimize = function(mainObj, secondObj, delta, stat)
 
     var t = T_INIT;
 
-    this.stim1 = new VisSpeedStim(this.classNum);
-    this.stim2 = new VisSpeedStim(this.classNum);
+    this.stim1 = null; this.stim2 = null;
+    while (!this.stim1 || !this.stim2)
+    {
+        this.stim1 = new VisSpeedStim(this.classNum);
+        if (!testHardConstraint(this.stim1[stat])) {
+            this.stim1 = null;
+        }
+
+        this.stim2 = new VisSpeedStim(this.classNum);
+        if (!testHardConstraint(this.stim2[stat])) {
+            this.stim2 = null;
+        }
+    }
 
     var s1 = this.stim1;
     var s2 = this.stim2;
@@ -417,7 +449,15 @@ StimulusPair.prototype.optimize = function(mainObj, secondObj, delta, stat)
 
             // select stimulus to perturb
             var index = Math.random() > 0.5 ? 1 : 0;
-            solution[index].perturb();
+            var perturbDone = false;
+            while (!perturbDone) {
+                solution[index].perturb();
+                if (!testHardConstraint(solution[index][stat])) {
+                    solution[index].revert();
+                } else {
+                    perturbDone = true;
+                }
+            }
 
             var diff = Math.abs( mainObj(s1, s2) - delta );
             var _diff = secondObj(s1, s2);
@@ -492,11 +532,10 @@ StimulusPair.prototype.optimize = function(mainObj, secondObj, delta, stat)
             }
 
         }
-        console.log('req: ' + delta.toFixed(5) + ', 1st: ' + (solutionDiff).toFixed(5) + ', 2nd: ' + _solutionDiff.toFixed(5));
+        //console.log('req: ' + delta.toFixed(5) + ', 1st: ' + (solutionDiff).toFixed(5) + ', 2nd: ' + _solutionDiff.toFixed(5));
         t *= ALPHA;
     }
-    console.log('s1: ' + s1[stat].toFixed(5) + ', s2: ' + s2[stat].toFixed(5));
-
+    console.log('s1: ' + s1[stat].toFixed(4) + ', s2: ' + s2[stat].toFixed(4) + ', diff: ' + Math.abs(s2[stat]-s1[stat]).toFixed(4) + ', req: ' + delta.toFixed(4));
     // randomly swap
     if (Math.random() > 0.5) {
         var t = this.stim1;
