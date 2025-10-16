@@ -5,7 +5,7 @@ var INDEFINITE_EXPOSURE = false;
 
 const ENGAGEMENT_DELTA = {
     mean: 0.7,
-    std: 0.3,
+    std: 0.35,
     slope: 0.8
 };
 
@@ -16,9 +16,9 @@ const SECONDARY_STAT = {
 };
 
 const STAIRCASE = {
-    mean: {initialDelta: 0.25, stepSize: 0.02, minDelta: 0.005, maxDelta: 0.9},
+    mean: {initialDelta: 0.3, stepSize: 0.025, minDelta: 0.0025, maxDelta: 0.95},
     std: {initialDelta: 0.15, stepSize: 0.01, minDelta: 0.001, maxDelta: 0.5},
-    slope: {initialDelta: 0.5, stepSize: 0.02, minDelta: 0.01, maxDelta: 1.0}
+    slope: {initialDelta: 0.5, stepSize: 0.03, minDelta: 0.01, maxDelta: 1.0}
 }
 
 const SOUND_FEEDBACK = false;
@@ -238,8 +238,8 @@ BlockController.prototype.nextTrial = function(isCorrect)
         direction = 'down';
     } else
     {
-        // three up
-        this.delta = Math.min(this.maxDelta, this.delta + 3 * this.stepSize);
+        // two up
+        this.delta = Math.min(this.maxDelta, this.delta + 2 * this.stepSize);
         direction = 'up';
     }
 
