@@ -54,7 +54,7 @@ function plotExample(statistic, visType, easy, dontRefresh)
     {
         delta = easy ? EASY_SLOPE : MEDIUM_SLOPE;
     }
-    pair.optimizeEnter(primary, secondary, delta);
+    pair.optimizeEnter(statistic, secondary, delta);
 
     var _visType = visType;
     if (!_visType) {
