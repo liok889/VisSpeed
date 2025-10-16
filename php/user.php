@@ -26,15 +26,15 @@ if ($_SESSION['status'] == 'failed') {
     }
 
     .title {
-      font-size: 20px; 
+      font-size: 20px;
       font-weight: bold
     }
-    .title-cell 
+    .title-cell
     {
       width: 100%;
       padding-bottom: 20px;
       padding-top: 20px;
-      text-align: center; 
+      text-align: center;
       background-color: #dddddd;
 
     }
@@ -44,7 +44,7 @@ if ($_SESSION['status'] == 'failed') {
       font-size: 15px;
     }
 
-  </style>  
+  </style>
 
 </head>
 <body>
@@ -53,7 +53,7 @@ if ($_SESSION['status'] == 'failed') {
     <div class="instructions title-cell">
       <span class="title">
         Welcome
-      </span> 
+      </span>
     </div>
 
  <?php
@@ -87,7 +87,7 @@ if ($_SESSION['status'] == 'failed') {
              console.log(data);
              if(data.indexOf('success') >= 0) { // if true (1)
                 setTimeout(function(){// wait for 5 secs(2)
-			location.href = '../tutorial1.html?statistic=' + <?php echo '"' . $_SESSION['expcondition'] . '"' ?>; // then reload the page.(3)
+			location.href = '../tutorial1.html?statistic=' + <?php echo '"' . $_SESSION['expcondition'] . '&seq=' . $_SESSION['seq'] . '"' ?>; // then reload the page.(3)
                 }, 100);
              }
              else{

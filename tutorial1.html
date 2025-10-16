@@ -102,11 +102,12 @@
 		if (!statistic) {
 			statistic = 'mean';
 		}
+		var seq = urlParams.get('statistic');
 		plotExample(statistic, VisType.VIS_BARS, false);
 
 
 		console.log('statistic ' + statistic);
-		document.getElementById("nextLink").setAttribute('href', 'tutorial2.html?statistic=' + statistic);
+		document.getElementById("nextLink").setAttribute('href', 'tutorial2.html?statistic=' + statistic + '&seq=' + seq);
 
 	</script>
 </body>

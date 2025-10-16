@@ -96,8 +96,9 @@
 		if (!statistic) {
 			statistic = 'mean';
 		}
+		
 		console.log('statistic ' + statistic);
-		document.getElementById("experimentLink").setAttribute('href', 'experiment.html?statistic=' + statistic);
+		document.getElementById("experimentLink").setAttribute('href', 'experiment.html?statistic=' + statistic + '&seq=' + seq);
 	</script>
 
 </body>

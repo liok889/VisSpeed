@@ -397,7 +397,7 @@
             d3.select("#prompt").text("Experiment Complete!");
 
             if (TRAINING && !TEST) {
-                window.location.replace(FINISHED_TRAINING_URL + STATISTIC);
+                window.location.replace(FINISHED_TRAINING_URL + STATISTIC + "&seq=" + SEQ);
             }
             else {
 

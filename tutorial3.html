@@ -99,8 +99,10 @@
 		if (!statistic) {
 			statistic = 'mean';
 		}
+		var seq = urlParams.get('statistic');
+
 		console.log('statistic ' + statistic);
-		document.getElementById("practiceLink").setAttribute('href', 'experiment.html?training=1&statistic=' + statistic);
+		document.getElementById("practiceLink").setAttribute('href', 'experiment.html?training=1&statistic=' + statistic + '&seq=' + seq);
 	</script>
 
 

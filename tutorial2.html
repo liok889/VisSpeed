@@ -104,13 +104,15 @@
 		if (!statistic) {
 			statistic = 'mean';
 		}
+		var seq = urlParams.get('statistic');
+
 		REFRESH_RATE = 1600;
 		plotExample(statistic, null, true);
 
 		console.log('statistic ' + statistic);
 
-		document.getElementById("prevLink").setAttribute('href', 'tutorial1.html?statistic=' + statistic);
-		document.getElementById("nextLink").setAttribute('href', 'tutorial3.html?statistic=' + statistic);
+		document.getElementById("prevLink").setAttribute('href', 'tutorial1.html?statistic=' + statistic + '&seq=' + seq);
+		document.getElementById("nextLink").setAttribute('href', 'tutorial3.html?statistic=' + statistic + '&seq=' + seq);
 
 	</script>
 
