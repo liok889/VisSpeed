@@ -124,7 +124,7 @@ BlockController.prototype.generateTrial = function()
 
     var delta = isEngagementTrial || this.data.length==0 ? ENGAGEMENT_DELTA[this.mode] : this.delta;
     var primary= this.mode;
-    var secondary = SECONDARY_STAT[this.mode]
+    var secondary = SECONDARY_STAT[this.mode];
 
     this.stimPair.optimizeEnter(primary, secondary, delta);
     if (this.stimPair.stim1[primary] > this.stimPair.stim2[primary]) {

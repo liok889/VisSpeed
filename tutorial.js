@@ -69,6 +69,7 @@ function plotExample(statistic, visType, easy, dontRefresh)
         W ,H,
         _visType || VisType.VIS_BARS
     );
+    pair.statistic = statistic;
     pair.highlightHigher();
 
     if (refresh) {
