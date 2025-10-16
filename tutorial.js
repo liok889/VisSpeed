@@ -5,6 +5,9 @@ var MEDIUM_MEAN = 0.3;
 var EASY_STD = 0.3;
 var MEDIUM_STD = 0.15;
 
+var EASY_SLOPE = 0.7;
+var MEDIUM_SLOPE = 0.35;
+
 var W = 200;
 var H = 100;
 var GAP = 100;
@@ -19,10 +22,15 @@ function plotExample(statistic, visType, easy, dontRefresh)
     if (statistic == 'mean') {
         d3.select('#statistic').html('<b>higher values on average</b>');
     }
-    else {
+    else if (statistic == 'std')
+    {
         d3.select('#statistic').html('<b>more variations in its values</b>');
-
     }
+    else if (statistic == 'slope')
+    {
+        d3.select('#statistic').html('<b>stronger increasing trend</b>');
+    }
+
     var svg = d3.select('svg');
     svg.selectAll("*").remove();
     var parent = svg.append('g')
@@ -33,12 +41,20 @@ function plotExample(statistic, visType, easy, dontRefresh)
         .attr('transform', 'translate(' + (W+GAP) + ',0)');
 
     var pair = new StimulusPair(15);
+    var delta;
+    var secondary = SECONDARY_STAT[statistic];
     if (statistic == 'mean') {
-        pair.optimize(easy ? EASY_MEAN : MEDIUM_MEAN, undefined);
+        delta = easy ? EASY_MEAN : MEDIUM_MEAN;
     }
-    else {
-        pair.optimize(undefined, easy ? EASY_STD : MEDIUM_STD);
+    else if (statistic == 'std')
+    {
+        delta = easy ? EASY_STD : MEDIUM_STD;
     }
+    else if (statistic == 'slope')
+    {
+        delta = easy ? EASY_SLOPE : MEDIUM_SLOPE;
+    }
+    pair.optimizeEnter(primary, secondary, delta);
 
     var _visType = visType;
     if (!_visType) {
