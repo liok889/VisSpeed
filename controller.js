@@ -1,5 +1,7 @@
 // 800 miliseconds of fixation
-var FIXATION_TIME = 600;
+var FIXATION_TIME = 800;
+var FIXATION_TIME_RAND = 300;
+
 var TRAINING = false;
 var INDEFINITE_EXPOSURE = false;
 
@@ -16,10 +18,10 @@ const SECONDARY_STAT = {
 };
 
 const STAIRCASE = {
-    mean: {initialDelta: 0.3, stepSize: 0.025, minDelta: 0.0025, maxDelta: 0.95},
+    mean: {initialDelta: 0.3, stepSize: 0.025, minDelta: 0.001, maxDelta: 0.95},
     std: {initialDelta: 0.15, stepSize: 0.01, minDelta: 0.001, maxDelta: 0.5},
-    slope: {initialDelta: 0.55, stepSize: 0.03, minDelta: 0.01, maxDelta: 1.0}
-}
+    slope: {initialDelta: 0.5, stepSize: 0.025, minDelta: 0.001, maxDelta: 1.0}
+};
 
 const SOUND_FEEDBACK = false;
 var audioCorrect, audioIncorrect;
@@ -153,10 +155,13 @@ BlockController.prototype.generateTrial = function()
         mean2: this.stimPair.stim2.mean,
         std1: this.stimPair.stim1.std,
         std2: this.stimPair.stim2.std,
+        slope1: this.stimPair.stim1.slope,
+        slope2: this.stimPair.stim2.slope,
+        intercept1: this.stimPair.stim1.intercept,
+        intercept2: this.stimPair.stim2.intercept,
 
         data1: this.stimPair.stim1.data,
         data2: this.stimPair.stim2.data,
-
     };
 
     if (FIXATION_TIME)
@@ -171,11 +176,18 @@ BlockController.prototype.generateTrial = function()
         }
 
         // account for optimization time as part of fixation time
-        var fixationTime = FIXATION_TIME - optTime;
+        // fixation time = base + random 0-300ms to prevent anticipation
+        // subtract optimization time from this
+        var fixationTime =
+            Math.floor(.5 + FIXATION_TIME + Math.random()*FIXATION_TIME_RAND) - optTime;
 
-        if (fixationTime <= 0) {
+        if (fixationTime <= 0)
+        {
             fixationTime = 0;
             this.curTrial.fixationTime = optTime;
+        }
+        else {
+            this.curTrial.fixationTime = fixationTime + optTime;
         }
 
         (function(_this) {
@@ -281,7 +293,9 @@ BlockController.prototype.nextTrial = function(isCorrect)
     else {
         (function(_this)
         {
-            _this.showFixationCross(true);
+            if (FIXATION_TIME) {
+                _this.showFixationCross(true);
+            }
 
             // minimial timeout just to allow the screen to update
             setTimeout(function()
