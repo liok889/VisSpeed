@@ -96,18 +96,55 @@
 				<td align="right"><a id="nextLink" href="tutorial3.html">Next</td>
 			</tr>
 		</table>
+
+
+		<div class="slider-container">
+			<label for="deltaSlider">Delta:</label>
+			<input type="range" id="deltaSlider" min="0" max="100" value="50">
+			<br>
+			<label for="refreshSlider">Refresh:</label>
+			<input type="range" id="refreshSlider" min="0" max="100" value="50">
+		</div>
+		
+
+
 	</div>
 
+
 	<script type="text/javascript">
+
 		var urlParams = new URLSearchParams(window.location.search);
 		var statistic = urlParams.get('statistic');
 		if (!statistic) {
 			statistic = 'mean';
 		}
-		var seq = urlParams.get('statistic');
+		var seq = urlParams.get('seq');
+
+		var deltaSlider = document.getElementById("deltaSlider");
+		var delta = null;
+		if (deltaSlider) deltaSlider.onchange= function()
+		{
+			delta = parseInt(this.value) / 100;
+			console.log('delta: ' + delta);
+			if (TIMEOUT !== null) {
+				clearTimeout(TIMEOUT);
+				TIMEOUT = null;
+				plotExample(statistic, null, delta === null ? true : delta);
+
+			}
+		}
+
+		var refreshSlider = document.getElementById("refreshSlider");
+		if (refreshSlider) refreshSlider.onchange = function()
+		{
+			REFRESH_RATE = 1600 * (parseInt(this.value) / 100);
+			console.log("refresh: " + REFRESH_RATE)
+		}
+
+
 
 		REFRESH_RATE = 1600;
-		plotExample(statistic, null, true);
+		plotExample(statistic, null, delta === null ? true : delta);
 
 		console.log('statistic ' + statistic);
 

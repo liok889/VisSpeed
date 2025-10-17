@@ -3,10 +3,10 @@ var EASY_MEAN = 0.45;
 var MEDIUM_MEAN = 0.3;
 
 var EASY_STD = 0.3;
-var MEDIUM_STD = 0.15;
+var MEDIUM_STD = 0.2;
 
-var EASY_SLOPE = 0.7;
-var MEDIUM_SLOPE = 0.35;
+var EASY_SLOPE = 0.8;
+var MEDIUM_SLOPE = 0.6;
 
 var W = 200;
 var H = 100;
@@ -14,8 +14,10 @@ var GAP = 100;
 var PAD=25;
 
 var REFRESH_RATE = 1900;
+var TIMEOUT = null;
+var CLASS_NUM = 20;
 
-function plotExample(statistic, visType, easy, dontRefresh)
+function plotExample(statistic, visType, easyDelta, dontRefresh)
 {
 
     var refresh = !dontRefresh;
@@ -40,19 +42,19 @@ function plotExample(statistic, visType, easy, dontRefresh)
     var g2 = parent.append('g')
         .attr('transform', 'translate(' + (W+GAP) + ',0)');
 
-    var pair = new StimulusPair(15);
+    var pair = new StimulusPair(CLASS_NUM);
     var delta;
     var secondary = SECONDARY_STAT[statistic];
     if (statistic == 'mean') {
-        delta = easy ? EASY_MEAN : MEDIUM_MEAN;
+        delta = easyDelta===true ? EASY_MEAN : easyDelta === false ? MEDIUM_MEAN : easyDelta;
     }
     else if (statistic == 'std')
     {
-        delta = easy ? EASY_STD : MEDIUM_STD;
+        delta = easyDelta===true ? EASY_STD : easyDelta === false ? MEDIUM_STD : easyDelta;
     }
     else if (statistic == 'slope')
     {
-        delta = easy ? EASY_SLOPE : MEDIUM_SLOPE;
+        delta = easyDelta===true ? EASY_SLOPE : easyDelta === false ? MEDIUM_SLOPE : easyDelta;
     }
     pair.optimizeEnter(statistic, secondary, delta);
 
@@ -73,8 +75,8 @@ function plotExample(statistic, visType, easy, dontRefresh)
     pair.highlightHigher();
 
     if (refresh) {
-        setTimeout(function() {
-            plotExample(statistic, visType, easy, !refresh)
+        TIMEOUT = setTimeout(function() {
+            plotExample(statistic, visType, easyDelta, !refresh)
         }, REFRESH_RATE);
     }
 }

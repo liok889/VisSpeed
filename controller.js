@@ -18,7 +18,7 @@ const SECONDARY_STAT = {
 const STAIRCASE = {
     mean: {initialDelta: 0.3, stepSize: 0.025, minDelta: 0.0025, maxDelta: 0.95},
     std: {initialDelta: 0.15, stepSize: 0.01, minDelta: 0.001, maxDelta: 0.5},
-    slope: {initialDelta: 0.5, stepSize: 0.03, minDelta: 0.01, maxDelta: 1.0}
+    slope: {initialDelta: 0.55, stepSize: 0.03, minDelta: 0.01, maxDelta: 1.0}
 }
 
 const SOUND_FEEDBACK = false;
@@ -162,19 +162,39 @@ BlockController.prototype.generateTrial = function()
     if (FIXATION_TIME)
     {
         // show cross
-        d3.select("#fixationCross").style('visibility', 'visible');
+        this.showFixationCross(true);
+
+        var optTime = this.stimPair.optTime;
+
+        if (isNaN(optTime)) {
+            optTime = 0;
+        }
+
+        // account for optimization time as part of fixation time
+        var fixationTime = FIXATION_TIME - optTime;
+
+        if (fixationTime <= 0) {
+            fixationTime = 0;
+            this.curTrial.fixationTime = optTime;
+        }
 
         (function(_this) {
             setTimeout(function() {
+                _this.showFixationCross(false);
                 _this.showTrial();
-                d3.select("#fixationCross").style('visibility', 'hidden');
-            }, FIXATION_TIME);
+            }, fixationTime);
         })(this);
     }
     else {
         this.showTrial();
     }
 };
+
+BlockController.prototype.showFixationCross = function(show)
+{
+    // show cross
+    d3.select("#fixationCross").style('visibility', show ? 'visible' : 'hidden');
+}
 
 BlockController.prototype.getEngagementResults = function() {
     return this.engagementResults;
@@ -259,7 +279,16 @@ BlockController.prototype.nextTrial = function(isCorrect)
         return true; // block is complete
     }
     else {
-        this.generateTrial();
+        (function(_this)
+        {
+            _this.showFixationCross(true);
+
+            // minimial timeout just to allow the screen to update
+            setTimeout(function()
+            {
+                _this.generateTrial();
+            }, 10);
+        })(this)
         return false;
     }
 };

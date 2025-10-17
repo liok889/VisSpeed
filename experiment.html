@@ -174,19 +174,19 @@
         // Define block configurations
         const BLOCK_CONFIGS = [
             // Exposure 200 ms
-            { visType: VisType.VIS_DOTS, classNum: 15, mode: 'std', exposureTime: 500, trialCount: 40 },
-            { visType: VisType.VIS_BARS, classNum: 15, mode: 'std', exposureTime: 500, trialCount: 40 },
-            { visType: VisType.VIS_AREA, classNum: 15, mode: 'std', exposureTime: 500, trialCount: 40 },
+            { visType: VisType.VIS_DOTS, classNum: 20, mode: 'std', exposureTime: 500, trialCount: 40 },
+            { visType: VisType.VIS_BARS, classNum: 20, mode: 'std', exposureTime: 500, trialCount: 40 },
+            { visType: VisType.VIS_AREA, classNum: 20, mode: 'std', exposureTime: 500, trialCount: 40 },
 
             // Exposure 1000 ms
-            { visType: VisType.VIS_DOTS, classNum: 15, mode: 'std', exposureTime: 1500, trialCount: 40 },
-            { visType: VisType.VIS_BARS, classNum: 15, mode: 'std', exposureTime: 1500, trialCount: 40 },
-            { visType: VisType.VIS_AREA, classNum: 15, mode: 'std', exposureTime: 1500, trialCount: 40 },
+            { visType: VisType.VIS_DOTS, classNum: 20, mode: 'std', exposureTime: 1500, trialCount: 40 },
+            { visType: VisType.VIS_BARS, classNum: 20, mode: 'std', exposureTime: 1500, trialCount: 40 },
+            { visType: VisType.VIS_AREA, classNum: 20, mode: 'std', exposureTime: 1500, trialCount: 40 },
 
             // Exposure 3000 ms
-            { visType: VisType.VIS_DOTS, classNum: 15, mode: 'std', exposureTime: 4000, trialCount: 40 },
-            { visType: VisType.VIS_BARS, classNum: 15, mode: 'std', exposureTime: 4000, trialCount: 40 },
-            { visType: VisType.VIS_AREA, classNum: 15, mode: 'std', exposureTime: 4000, trialCount: 40 }
+            { visType: VisType.VIS_DOTS, classNum: 20, mode: 'std', exposureTime: 4000, trialCount: 40 },
+            { visType: VisType.VIS_BARS, classNum: 20, mode: 'std', exposureTime: 4000, trialCount: 40 },
+            { visType: VisType.VIS_AREA, classNum: 20, mode: 'std', exposureTime: 4000, trialCount: 40 }
         ];
 
         // assign default block configs
@@ -223,9 +223,9 @@
 
         // configuration for training
         var trainingConfigs = [
-            { mode: STATISTIC, classNum: 15, visType: VisType.VIS_BARS, trialCount: 6, exposureTime: 1500 },
-            { mode: STATISTIC, classNum: 15, visType: VisType.VIS_DOTS, trialCount: 6, exposureTime: 1500 },
-            { mode: STATISTIC, classNum: 15, visType: VisType.VIS_AREA, trialCount: 6, exposureTime: 1500 },
+            { mode: STATISTIC, classNum: 20, visType: VisType.VIS_BARS, trialCount: 6, exposureTime: 1500 },
+            { mode: STATISTIC, classNum: 20, visType: VisType.VIS_DOTS, trialCount: 6, exposureTime: 1500 },
+            { mode: STATISTIC, classNum: 20, visType: VisType.VIS_AREA, trialCount: 6, exposureTime: 1500 },
         ];
 
         // URLS
@@ -238,9 +238,6 @@
         var H = 170;     // stimulus height
         var GAP = 110;  // gap between stimuli
         var PADDING = 20;
-
-        // default statistic to test
-        var STATISTIC = null; //'mean';
 
         // number of engagement checks per block
         var ENGAGEMENT_PER_BLOCK = 2;
