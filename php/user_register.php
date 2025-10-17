@@ -38,7 +38,8 @@ else
 {
 	unset($_SESSION['error']);
 	$expcondition = mysqli_real_escape_string($conn, $_SESSION['expcondition']);
-	$sql = "INSERT INTO user (mturkid, expcondition) VALUES ('" . mysqli_real_escape_string($conn, $id) . "', '" . $expcondition . "')";
+	$seq = intval($_SESSION['seq']);
+	$sql = "INSERT INTO user (mturkid, expcondition, seq) VALUES ('" . mysqli_real_escape_string($conn, $id) . "', '" . $expcondition . "', " . $seq . ")";
 
 	if (mysqli_query($conn, $sql)) 
 	{
