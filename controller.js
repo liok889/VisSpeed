@@ -18,9 +18,9 @@ const SECONDARY_STAT = {
 };
 
 const STAIRCASE = {
-    mean: {initialDelta: 0.3, stepSize: 0.025, minDelta: 0.001, maxDelta: 0.95},
-    std: {initialDelta: 0.15, stepSize: 0.01, minDelta: 0.001, maxDelta: 0.5},
-    slope: {initialDelta: 0.5, stepSize: 0.025, minDelta: 0.001, maxDelta: 1.0}
+    mean: {initialDelta: 0.25, stepSize: 0.025, minDelta: 0.00001, maxDelta: 0.95},
+    std: {initialDelta: 0.15, stepSize: 0.0125, minDelta: 0.00001, maxDelta: 0.5},
+    slope: {initialDelta: 0.4, stepSize: 0.025, minDelta: 0.00001, maxDelta: 1.0}
 };
 
 const SOUND_FEEDBACK = false;
@@ -99,11 +99,11 @@ function BlockController(options)
                  }
              }
              else {
-                 if (d3.event.keyCode == 37) {
+                 if (d3.event.keyCode == 37 || d3.event.keyCode == 65) {
                      // select left
                      _this.select('left');
                 }
-                else if (d3.event.keyCode == 39) {
+                else if (d3.event.keyCode == 39 || d3.event.keyCode == 68) {
                     // select right
                     _this.select('right');
                 }

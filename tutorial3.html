@@ -76,9 +76,11 @@
 			<p>Your task is make a guess <b>as best as you can</b>
 				within this short time.
 
-			<p>You will make your selection by clicking on the chart
+			<p>You will make your selection by pressing the <b>[A] key</b> for left chart, or the <b>[D] key</b> for the right chart.
+
+				<!--clicking on the chart-->
 				<!--on either chart, or by pressing the &ShortLeftArrow;</span> , <span class="larger">&ShortRightArrow;</span> arrows on your keyboard.-->
-				You will then press <b>ENTER on keyboard</b> to confirm selection.
+				You will then press <b>ENTER</b> to confirm selection.
 
 			<p>We will now go through a few practice rounds. You will receive feedback on how you guessed during practice.
 
@@ -86,7 +88,7 @@
 
 		<p><table width="100%">
 			<tr>
-				<td align="left"> <a href="tutorial2.html">Previous</td>
+				<td align="left"> <a id="backLink" href="tutorial2.html?statistic=">Previous</td>
 				<td align="right"><a id="practiceLink" href="practice.html?statistic=">Next</td>
 			</tr>
 		</table>
@@ -102,6 +104,7 @@
 		var seq = urlParams.get('seq');
 
 		console.log('statistic ' + statistic);
+		document.getElementById("backLink").setAttribute('href', 'tutorial2.html?statistic=' + statistic + '&seq=' + seq);
 		document.getElementById("practiceLink").setAttribute('href', 'experiment.html?training=1&statistic=' + statistic + '&seq=' + seq);
 	</script>
 

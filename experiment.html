@@ -151,13 +151,14 @@
             STATISTIC = 'mean';
         }
 
+        // latin square
         const ORDERING = [
             ['A', 'B', 'C'],
-            ['A', 'C', 'B'],
-            ['B', 'A', 'C'],
+            //['A', 'C', 'B'],
+            //['B', 'A', 'C'],
             ['B', 'C', 'A'],
             ['C', 'A', 'B'],
-            ['C', 'B', 'A']
+            //['C', 'B', 'A']
         ];
         const VIS_MAP = {
             A: VisType.VIS_DOTS,
@@ -166,9 +167,9 @@
         };
 
         const BLOCK_SEED = [
-            { trialCount: 40, classNum: 20, exposureTime: 500 },
-            { trialCount: 40, classNum: 20, exposureTime: 1500},
-            { trialCount: 40, classNum: 20, exposureTime: 4000}
+            { trialCount: 45, classNum: 20, exposureTime: 500 },
+            { trialCount: 45, classNum: 20, exposureTime: 1500},
+            { trialCount: 45, classNum: 20, exposureTime: 4000}
         ];
 
         // Define block configurations
