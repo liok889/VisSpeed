@@ -372,47 +372,84 @@ StimulusPair.prototype.highlightHigher = function()
     }
 }
 
+function testLimit(value, limit) {
+    if (!limit) {
+        return true;
+    }
+    else {
+        if (limit[0] === null || value >= limit[0]) {
+            if (limit[1] === null || value <= limit[1]) {
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
+var ADVERSERIAL_PENALTY = 0.5;
+var OBJECTIVE_FUNCS = {
+    general: function(s1, s2, stat1, stat2, delta, adverserial) {
+        var diff  = Math.abs( Math.abs(s1[stat1]-s2[stat1]) - delta );
+        var diff2 = stat2 ? Math.abs(s1[stat2]-s2[stat2]) : 0;
+
+        // cost if diff in main stat + 50% of diff second stat
+        var cost = diff + diff2 * 0.5;
+        var adv = 0;
+        if (adverserial)
+        {
+            if (s1[stat1] > s2[stat1]) {
+                adv = s2[adverserial] - s1[adverserial];
+            }
+            else {
+                adv = s1[adverserial]-s2[adverserial];
+            }
+        }
+        return cost +  adv * ADVERSERIAL_PENALTY;
+    }
+
+}
 StimulusPair.prototype.optimizeEnter = function(mainStat, secondStat, delta)
 {
-    //console.log("optimize: " + delta);
-    this.optTime = new Date();
-    var hardLimit = mainStat == 'slope' ? [0.0, null] : null;
+    // keep track of optimization time
+    var optStartTime = new Date();
 
+    var objectiveFunc = function(s1, s2)
+    {
+        return OBJECTIVE_FUNCS.general(s1, s2, mainStat, secondStat, delta);
+    }
+    var hardLimitTest = mainStat == 'slope' ?
+        function(s) {
+            return testLimit(s[mainStat], [0, null]);
+        }
+        : function() { return true };
+
+    
     this.optimize(
-        function(s1, s2) {
-            return Math.abs(s1[mainStat]-s2[mainStat]);
-        },
+        // combined objective function
+        objectiveFunc,
 
-        function(s1, s2) {
-            var _diff = Math.abs(s1[secondStat]-s2[secondStat]);
-            return _diff;
-        },
-        hardLimit,
-        delta, mainStat
+        // hard limit function, only for the slope statistic (the others are naturally limited)
+        hardLimitTest
     );
-    this.optTime = (new Date()) - this.optTime;
 
+    this.optTime = (new Date()) - optStartTime;
+
+    // output diagnostics
+    var solDiff = Math.abs(this.stim2[mainStat]-this.stim1[mainStat]);
+    console.log(
+        's1: ' + this.stim1[mainStat].toFixed(4) + ', ' +
+        's2: ' + this.stim2[mainStat].toFixed(4) + ', ' +
+        'diff: ' + solDiff.toFixed(4) + ', ' +
+        'req: ' + delta.toFixed(4)
+    );
 }
 
 
-StimulusPair.prototype.optimize = function(mainObj, secondObj, hardConstraint, delta, stat)
+StimulusPair.prototype.optimize = function(mainObj, hardConstraint, stat)
 {
-     var testHardConstraint = function(stat) {
-        if (!hardConstraint) {
-            return true;
-        }
-        else {
-            if (hardConstraint[0] === null || stat >= hardConstraint[0]) {
-                if (hardConstraint[1] === null || stat <= hardConstraint[1]) {
-                    return true;
-                }
-            }
-            return false;
-        }
-    }
     var T_INIT = 1;
     var T_END = 0.0001;     // end temperature
-    var ALPHA = 0.9;      // cooling rate
+    var ALPHA = 0.9;        // cooling rate
     var ITER_COUNT = 5500;  // number of iterations per temp
     var K = 2;
 
@@ -422,12 +459,12 @@ StimulusPair.prototype.optimize = function(mainObj, secondObj, hardConstraint, d
     while (!this.stim1 || !this.stim2)
     {
         this.stim1 = new VisSpeedStim(this.classNum);
-        if (!testHardConstraint(this.stim1[stat])) {
+        if (!hardConstraint(this.stim1)) {
             this.stim1 = null;
         }
 
         this.stim2 = new VisSpeedStim(this.classNum);
-        if (!testHardConstraint(this.stim2[stat])) {
+        if (!hardConstraint(this.stim2)) {
             this.stim2 = null;
         }
     }
@@ -436,88 +473,39 @@ StimulusPair.prototype.optimize = function(mainObj, secondObj, hardConstraint, d
     var s2 = this.stim2;
 
     var solution = [s1, s2];
-    var solutionDiff = Math.abs( mainObj(s1, s2) - delta );
-    var _solutionDiff = secondObj(s1, s2);
-
-    var cost = Number.MAX_VALUE;
+    var solutionDiff = mainObj(s1, s2);
 
     while (t>=T_END)
     {
         var avgDiff = 0;
         for (var iter=0; iter<ITER_COUNT; iter++)
         {
-
-            // select stimulus to perturb
+            // randomly select stimulus to perturb
             var index = Math.random() > 0.5 ? 1 : 0;
             var perturbDone = false;
-            while (!perturbDone) {
+
+            // pertrub until we get a new acceptable solution
+            while (!perturbDone)
+            {
                 solution[index].perturb();
-                if (!testHardConstraint(solution[index][stat])) {
+                if (!hardConstraint(solution[index])) {
                     solution[index].revert();
                 } else {
                     perturbDone = true;
                 }
             }
 
-            var diff = Math.abs( mainObj(s1, s2) - delta );
-            var _diff = secondObj(s1, s2);
+            // compute objective function
+            var diff = mainObj(s1, s2);
             var tolerance = 0;
 
-            // test solution
-            /*
-            if (deltaMean !== undefined)
-            {
-                // test the mean difference between the two solutions
-                var d = Math.abs(s1.mean - s2.mean);
-                avgDiff += d;
-                diff = Math.abs(d - deltaMean);
-                _diff = Math.abs(s1.std-s2.std);
-                tolernace = MEAN_TOLERANCE;
-            }
-            else {
-                var d = Math.abs(s1.std - s2.std)
-                avgDiff += d;
-                diff = Math.abs(d - deltaStd);
-                _diff = Math.abs(s1.mean-s2.mean);
-                tolerance = STD_TOLERANCE;
-            }
-            */
-
+            // test if new solution is better than old
             var better = false;
-            if (false && solutionDiff <= tolerance)
-            {
-                // current solution is satisfactory
-                if (diff <= tolerance)
-                {
-                    // so is new solution
-                    // see if it's worth adopting the new solution
-                    cost = _diff - _solutionDiff;
+            var cost = diff - solutionDiff;
 
-                    // adopt new solution if cost on seconday measure is better
-                    better = cost < 0 ? true : false;
-                }
-            }
-            else {
-                cost = diff - solutionDiff +
-                    // 50 percent influence of other dimension
-                    (_diff - _solutionDiff) * .5;
-
-                if (cost <= 0) {
-                    // new solution is less costly
-                    better = true;
-                }
-                // current solution is not satisfactory
-                /*
-                if (diff < solutionDiff) {
-                    better = true;
-                }
-                else {
-                    cost =
-                        diff - solutionDiff +
-                        // 50 percent influence of other dimension
-                        (_diff - _solutionDiff) * .5;
-                }
-                */
+            if (cost <= 0) {
+                // new solution is less costly
+                better = true;
             }
 
             var e = 1/(1+Math.exp(K*cost/t));
@@ -525,17 +513,16 @@ StimulusPair.prototype.optimize = function(mainObj, secondObj, hardConstraint, d
             {
                 // take the new solution
                 solutionDiff = diff;
-                _solutionDiff = _diff;
             }
             else {
                 solution[index].revert();
             }
 
         }
-        //console.log('req: ' + delta.toFixed(5) + ', 1st: ' + (solutionDiff).toFixed(5) + ', 2nd: ' + _solutionDiff.toFixed(5));
+        // cool
         t *= ALPHA;
     }
-    console.log('s1: ' + s1[stat].toFixed(4) + ', s2: ' + s2[stat].toFixed(4) + ', diff: ' + Math.abs(s2[stat]-s1[stat]).toFixed(4) + ', req: ' + delta.toFixed(4));
+
     // randomly swap
     if (Math.random() > 0.5) {
         var t = this.stim1;

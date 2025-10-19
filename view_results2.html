@@ -70,7 +70,9 @@
 				trialNum: +d.trialNum
 			}));
 
-			participants = Array.from(new Set(data.map(d => d.id))).sort();
+			data.sort( (a, b) => a.statistic.localeCompare(b.statistic) );
+
+			participants = Array.from(new Set(data.map(d => d.id)));//.sort();
 			participantSelect.selectAll('option').data(participants).join('option').text(d => d).attr('value', d => d);
 
 			participantSelect.on('change', updateOptionsAndRender);
