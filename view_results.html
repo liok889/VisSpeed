@@ -1,0 +1,394 @@
+<!doctype html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>Experiment Data Inspector</title>
+	<script src="https://d3js.org/d3.v7.min.js"></script>
+	<style>
+		body { font-family: sans-serif; margin: 16px; }
+		.controls { display: inline-flex; gap: 12px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+		label { font-size: 13px; }
+		select, button { font-size: 13px; padding: 4px 6px; }
+		svg { border: 1px solid #ddd; background: #fafafa; display: block; }
+		#summary { margin-left: 8px; color: #333; font-size: 13px; }
+	</style>
+</head>
+<body>
+
+	<div class="controls">
+		<label>Participant:
+			<select id="participantSelect"></select>
+		</label>
+
+		<label>Visualization:
+			<select id="visSelect"></select>
+		</label>
+
+		<label>Exposure (ms):
+			<select id="exposureSelect"></select>
+		</label>
+
+		<label>Statistic:
+			<select id="statSelect"></select>
+		</label>
+
+		<button id="prevBtn">◀ Prev</button>
+		<button id="nextBtn">Next ▶</button>
+
+		<span id="summary"></span>
+	</div>
+
+	<svg id="chart" width="900" height="520"></svg>
+
+	<script>
+		(function() {
+			const CSV_PATH = 'results.csv'; // put your CSV at this path or change
+			const svg = d3.select('#chart');
+			const width = +svg.attr('width');
+			const height = +svg.attr('height');
+			const margin = { top: 24, right: 20, bottom: 48, left: 66 };
+			const innerW = width - margin.left - margin.right;
+			const innerH = height - margin.top - margin.bottom;
+
+			const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+			const gx = g.append('g').attr('transform', `translate(0, ${innerH})`);
+			const gy = g.append('g');
+
+			// axis labels
+			svg.append('text')
+				.attr('x', margin.left + innerW/2)
+				.attr('y', height - 8)
+				.attr('text-anchor', 'middle')
+				.style('font-size', '13px')
+				.text('delta');
+
+			svg.append('text')
+				.attr('transform', 'rotate(-90)')
+				.attr('x', -(margin.top + innerH/2))
+				.attr('y', 18)
+				.attr('text-anchor', 'middle')
+				.style('font-size', '13px')
+				.text('correct');
+
+			// UI elements
+			const participantSelect = d3.select('#participantSelect');
+			const visSelect = d3.select('#visSelect');
+			const exposureSelect = d3.select('#exposureSelect');
+			const statSelect = d3.select('#statSelect');
+			const prevBtn = d3.select('#prevBtn');
+			const nextBtn = d3.select('#nextBtn');
+			const summary = d3.select('#summary');
+
+			let data = [];
+			let participants = [];
+			let currentParticipantIndex = 0;
+
+			function parseRow(d) {
+				// defensive parsing: many CSVs encode numbers as strings
+				return {
+					id: d.subjectid,
+					visOrdering: d.visOrdering,
+					blockNum: +d.blockNum,
+					trialNum: +d.trialNum,
+					classNum: +d.classNum,
+					visType: d.visType,
+					statistic: d.statistic,
+					correct: +d.correct,
+					delta: +d.delta,
+					deltaSecondary: +d.deltaSecondary,
+					requestedDelta: +d.requestedDelta,
+					exposureTime: +d.exposureTime,
+					fixationTime: +d.fixationTime,
+					generationTime: +d.generationTime,
+					responseTime: +d.responseTime,
+					raw: d
+				};
+			}
+
+			// load CSV
+			d3.csv(CSV_PATH, parseRow).then(rows => {
+				data = rows;
+				participants = Array.from(new Set(data.map(d => d.id))).sort();
+				if (participants.length === 0) {
+					alert('No participants found in CSV.');
+					return;
+				}
+
+				// populate participant select
+				participantSelect.selectAll('option').remove();
+				participantSelect.selectAll('option')
+					.data(participants)
+					.join('option')
+					.attr('value', d => d)
+					.text(d => d);
+
+				// listeners
+				participantSelect.on('change', onParticipantChange);
+				visSelect.on('change', onVisChange);
+				exposureSelect.on('change', onExposureChange);
+				statSelect.on('change', render);
+				prevBtn.on('click', goPrevParticipant);
+				nextBtn.on('click', goNextParticipant);
+
+				// initialize
+				currentParticipantIndex = 0;
+				participantSelect.property('selectedIndex', currentParticipantIndex);
+				populateVisExposureStatAndRender();
+			}).catch(err => {
+				console.error('Failed to load CSV:', err);
+				alert('Failed to load CSV. See console for details.');
+			});
+
+			function goPrevParticipant() {
+				if (!participants.length) return;
+				currentParticipantIndex = (currentParticipantIndex - 1 + participants.length) % participants.length;
+				participantSelect.property('selectedIndex', currentParticipantIndex);
+				populateVisExposureStatAndRender();
+			}
+			function goNextParticipant() {
+				if (!participants.length) return;
+				currentParticipantIndex = (currentParticipantIndex + 1) % participants.length;
+				participantSelect.property('selectedIndex', currentParticipantIndex);
+				populateVisExposureStatAndRender();
+			}
+
+			function onParticipantChange() {
+				const val = participantSelect.property('value');
+				currentParticipantIndex = participants.indexOf(val);
+				populateVisExposureStatAndRender();
+			}
+
+			function onVisChange() {
+				populateExposuresAndStatsPreserve();
+			}
+
+			function onExposureChange() {
+				populateStatsPreserve();
+			}
+
+			// Populate vis/exposure/stat selects while preserving user choices when possible
+			function populateVisExposureStatAndRender() {
+				const pid = participantSelect.property('value');
+				const subset = data.filter(d => d.id === pid);
+
+				const visOptions = Array.from(new Set(subset.map(d => d.visType))).sort();
+				const prevVis = visSelect.property('value');
+
+				visSelect.selectAll('option').remove();
+				visSelect.selectAll('option')
+					.data(visOptions)
+					.join('option')
+					.attr('value', d => d)
+					.text(d => d);
+
+				// choose selection: preserve if possible, else first
+				if (prevVis && visOptions.includes(prevVis)) {
+					visSelect.property('value', prevVis);
+				} else {
+					visSelect.property('value', visOptions[0] || '');
+				}
+
+				populateExposuresAndStatsPreserve();
+			}
+
+			function populateExposuresAndStatsPreserve() {
+				const pid = participantSelect.property('value');
+				const vis = visSelect.property('value');
+				const subset = data.filter(d => d.id === pid && d.visType === vis);
+
+				// exposures as numbers sorted
+				const exposureOptions = Array.from(new Set(subset.map(d => d.exposureTime))).map(Number).sort((a,b)=>a-b);
+				const prevExp = +exposureSelect.property('value');
+
+				exposureSelect.selectAll('option').remove();
+				exposureSelect.selectAll('option')
+					.data(exposureOptions)
+					.join('option')
+					.attr('value', d => d)
+					.text(d => d);
+
+				if (!isNaN(prevExp) && exposureOptions.includes(prevExp)) {
+					exposureSelect.property('value', prevExp);
+				} else {
+					exposureSelect.property('value', exposureOptions[0] || '');
+				}
+
+				populateStatsPreserve();
+			}
+
+			function populateStatsPreserve() {
+				const pid = participantSelect.property('value');
+				const vis = visSelect.property('value');
+				const exp = +exposureSelect.property('value');
+
+				const subset = data.filter(d => d.id === pid && d.visType === vis && d.exposureTime === exp);
+				const statOptions = Array.from(new Set(subset.map(d => d.statistic))).sort();
+				const prevStat = statSelect.property('value');
+
+				statSelect.selectAll('option').remove();
+				statSelect.selectAll('option')
+					.data(statOptions)
+					.join('option')
+					.attr('value', d => d)
+					.text(d => d);
+
+				if (prevStat && statOptions.includes(prevStat)) {
+					statSelect.property('value', prevStat);
+				} else {
+					statSelect.property('value', statOptions[0] || '');
+				}
+
+				render();
+			}
+
+			// Main render function (delta on X, correct (0/1) on Y, semi-transparent dots)
+			function render() {
+				const pid = participantSelect.property('value');
+				const vis = visSelect.property('value');
+				const exp = +exposureSelect.property('value');
+				const stat = statSelect.property('value');
+
+				let subset = data.filter(d => d.id === pid && d.visType === vis && d.exposureTime === exp && d.statistic === stat);
+
+				summary.text(`participant: ${pid}  —  vis: ${vis}  —  exposure: ${exp} ms  —  stat: ${stat}  —  n=${subset.length}`);
+
+				// clear previous plot elements (but keep axes groups)
+				g.selectAll('.dot').remove();
+				g.selectAll('.probGroup').remove();
+				g.selectAll('.emptyMsg').remove();
+
+				if (!subset.length) {
+					g.append('text')
+						.attr('class', 'emptyMsg')
+						.attr('x', innerW/2)
+						.attr('y', innerH/2)
+						.attr('text-anchor', 'middle')
+						.attr('fill', '#666')
+						.text('No data for this selection.');
+					gx.call(d3.axisBottom(d3.scaleLinear().domain([0,1]).range([0, innerW])));
+					gy.call(d3.axisLeft(d3.scaleLinear().domain([0,1]).range([innerH,0])));
+					return;
+				}
+
+				// scales
+				const deltaExtent = d3.extent(subset, d => d.delta);
+				// if extent is zero (all same delta), expand slightly
+				if (deltaExtent[0] === deltaExtent[1]) {
+					deltaExtent[0] = deltaExtent[0] - 0.05;
+					deltaExtent[1] = deltaExtent[1] + 0.05;
+				}
+				const xpad = (deltaExtent[1] - deltaExtent[0]) * 0.06 || 0.1;
+				const xScale = d3.scaleLinear().domain([deltaExtent[0] - xpad, deltaExtent[1] + xpad]).range([0, innerW]).nice();
+				const yScale = d3.scaleLinear().domain([-0.08, 1.08]).range([innerH, 0]);
+
+				// axes
+				const xAxis = d3.axisBottom(xScale).ticks(Math.min(10, Math.max(4, Math.floor(innerW/80))));
+				const yAxis = d3.axisLeft(yScale).ticks(3);
+				gx.call(xAxis);
+				gy.call(yAxis);
+
+				// jitter width as fraction of pixel width to reduce overlap visually (small)
+				const jitterPx = Math.min(6, innerW * 0.002);
+
+				// bind dots
+				const dots = g.selectAll('.dot').data(subset, d => d.blockNum + '-' + d.trialNum);
+
+				// enter
+				const enter = dots.enter().append('circle')
+					.attr('class', 'dot')
+					.attr('r', 5)
+					.attr('cx', d => xScale(d.delta))
+					.attr('cy', d => yScale(d.correct))
+					.attr('fill', '#1f77b4')
+					.attr('fill-opacity', 0.45)
+					.attr('stroke', '#111')
+					.attr('stroke-width', 0.35)
+					.attr('opacity', 0);
+
+				// update + enter merge
+				enter.merge(dots)
+					.transition().duration(120)
+					.attr('cx', d => xScale(d.delta) + (Math.random() - 0.5) * jitterPx)
+					.attr('cy', d => yScale(d.correct))
+					.attr('opacity', 1);
+
+				// exit
+				dots.exit().transition().attr('opacity', 0).remove();
+
+				// overlay binned proportion summary (helpful for psychometric visualization)
+				const BIN_COUNT = Math.max(8, Math.min(30, Math.floor(innerW / 40)));
+				const bins = d3.bin().thresholds(BIN_COUNT).value(d => d.delta)(subset);
+
+				const probs = bins.map(bin => {
+					if (bin.length === 0) return null;
+					return {
+						x: d3.mean(bin, v => v.delta),
+						p: d3.mean(bin, v => v.correct),
+						n: bin.length
+					};
+				}).filter(d => d);
+
+				const probG = g.append('g').attr('class', 'probGroup');
+
+				probG.selectAll('circle.prob')
+					.data(probs)
+					.join('circle')
+					.attr('class', 'prob')
+					.attr('cx', d => xScale(d.x))
+					.attr('cy', d => yScale(d.p))
+					.attr('r', d => Math.max(3, Math.min(9, Math.sqrt(d.n))))
+					.attr('fill', '#ff7f0e')
+					.attr('fill-opacity', 0.8)
+					.attr('stroke', '#a14d00')
+					.attr('stroke-width', 0.6);
+
+				// optional: draw a smoothed line through binned probs (quick piecewise smoothing)
+				const line = d3.line()
+					.x(d => xScale(d.x))
+					.y(d => yScale(d.p))
+					.curve(d3.curveMonotoneX);
+
+				probG.append('path')
+					.datum(probs)
+					.attr('d', line)
+					.attr('fill', 'none')
+					.attr('stroke', '#ff7f0e')
+					.attr('stroke-width', 1.25)
+					.attr('stroke-opacity', 0.7);
+
+				// tooltip on hover
+				const tooltip = d3.select('body').selectAll('.tooltip').data([0]);
+				const tt = tooltip.enter().append('div')
+					.attr('class', 'tooltip')
+					.style('position', 'absolute')
+					.style('pointer-events', 'none')
+					.style('background', 'rgba(255,255,255,0.95)')
+					.style('border', '1px solid #ccc')
+					.style('padding', '6px 8px')
+					.style('font-size', '12px')
+					.style('color', '#111')
+					.style('display', 'none');
+
+				g.selectAll('.dot')
+					.on('mouseover', function(event, d) {
+						tt.style('display', 'block')
+							.html(
+								`block ${d.blockNum} trial ${d.trialNum}<br/>
+								delta: ${d.delta.toFixed(4)}<br/>
+								correct: ${d.correct}<br/>
+								requested: ${d.requestedDelta}`
+							);
+					})
+					.on('mousemove', function(event) {
+						tt.style('left', (event.pageX + 12) + 'px')
+						  .style('top', (event.pageY + 12) + 'px');
+					})
+					.on('mouseout', function() {
+						tt.style('display', 'none');
+					});
+			} // render
+
+		})();
+	</script>
+</body>
+</html>

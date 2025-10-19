@@ -1,0 +1,277 @@
+<!doctype html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>Experiment Data Inspector – Grid & Psychometric</title>
+	<script src="https://d3js.org/d3.v7.min.js"></script>
+	<style>
+		body { font-family: sans-serif; margin: 16px; }
+		.controls { display: inline-flex; gap: 12px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+		label { font-size: 13px; }
+		select, button { font-size: 13px; padding: 4px 6px; }
+		svg { border: 1px solid #ddd; background: #fafafa; display: block; margin-bottom: 20px; }
+		.dot { fill: steelblue; opacity: 0.45; stroke: #111; stroke-width: 0.35; }
+		.bin-dot { fill: orange; opacity: 0.8; stroke: #a14d00; stroke-width: 0.6; }
+		.line { fill: none; stroke-width: 1.25; stroke-opacity: 0.7; }
+		.exposure-line { stroke: steelblue; }
+		.psych-line { stroke-width: 2; }
+		.tooltip { position: absolute; pointer-events: none; background: rgba(255,255,255,0.95); border: 1px sol"id" #ccc; padding: 6px 8px; font-size: 12px; color: #111; display: none; }
+	</style>
+</head>
+<body>
+	<div class="controls">
+		<label>Participant:
+			<select id="participantSelect"></select>
+		</label>
+		<label>Visualization:
+			<select id="visSelect"></select>
+		</label>
+		<label>Statistic:
+			<select id="statSelect"></select>
+		</label>
+		<button id="prevBtn">◀ Prev</button>
+		<button id="nextBtn">Next ▶</button>
+	</div>
+
+	<svg id="chart" width="900" height="720"></svg>
+
+	<script>
+	(function() {
+		const CSV_PATH = 'results.csv';
+		const svg = d3.select('#chart');
+		const width = +svg.attr('width');
+		const height = +svg.attr('height');
+		const margin = {top: 30, right: 20, bottom: 50, left: 60};
+		const innerW = width - margin.left - margin.right;
+		const innerH = height - margin.top - margin.bottom;
+
+		const participantSelect = d3.select('#participantSelect');
+		const visSelect = d3.select('#visSelect');
+		const statSelect = d3.select('#statSelect');
+
+		const subplotH = 180;
+		const subplotW = 260;
+		const gridCols = 3;
+		const exposureLevels = [500, 1500, 4000]; // hard-coded; adapt as needed
+		const colorScale = d3.scaleOrdinal(d3.schemeCategory10).domain(exposureLevels);
+
+		let data = [];
+		let participants = [];
+
+		d3.csv(CSV_PATH, d3.autoType).then(rows => {
+			data = rows.map(d => ({
+				id: d.subjectid,
+				visType: d.visType,
+				statistic: d.statistic,
+				correct: +d.correct,
+				delta: +d.delta,
+				exposureTime: +d.exposureTime,
+				blockNum: +d.blockNum,
+				trialNum: +d.trialNum
+			}));
+
+			participants = Array.from(new Set(data.map(d => d.id))).sort();
+			participantSelect.selectAll('option').data(participants).join('option').text(d => d).attr('value', d => d);
+
+			participantSelect.on('change', updateOptionsAndRender);
+			// Whenever the visSelect changes, update lastSelectedVis
+			visSelect.on('change', () => {
+				lastSelectedVis = visSelect.property('value');
+				updateOptionsAndRender();
+			});
+			statSelect.on('change', render);
+
+			updateOptionsAndRender();
+		});
+
+
+		// Track the currently selected visualization across participants
+		let lastSelectedVis = null;
+
+		function updateOptionsAndRender() {
+			const pid = participantSelect.property('value');
+			const subset = data.filter(d => d.id === pid);
+			const visOptions = Array.from(new Set(subset.map(d => d.visType))).sort();
+			visSelect.selectAll('option').remove();
+			visSelect.selectAll('option').data(visOptions).join('option').text(d=>d).attr('value', d=>d);
+
+			// Preserve previously selected visualization if available for this participant
+			if (lastSelectedVis && visOptions.includes(lastSelectedVis)) {
+				visSelect.property('value', lastSelectedVis);
+			} else {
+				visSelect.property('value', visOptions[0] || '');
+			}
+
+			const statOptions = Array.from(new Set(subset.map(d => d.statistic))).sort();
+			statSelect.selectAll('option').remove();
+			statSelect.selectAll('option').data(statOptions).join('option').text(d=>d).attr('value', d=>d);
+
+			render();
+		}
+
+
+		let currentParticipantIndex = 0;
+
+		// Initialize select
+		participantSelect.property('value', participants[currentParticipantIndex]);
+
+		// Button listeners
+		d3.select('#prevBtn').on('click', () => {
+		    currentParticipantIndex = (currentParticipantIndex - 1 + participants.length) % participants.length;
+		    participantSelect.property('value', participants[currentParticipantIndex]);
+		    updateOptionsAndRender();
+		});
+
+		d3.select('#nextBtn').on('click', () => {
+		    currentParticipantIndex = (currentParticipantIndex + 1) % participants.length;
+		    participantSelect.property('value', participants[currentParticipantIndex]);
+		    updateOptionsAndRender();
+		});
+
+		// Keyboard navigation for participants
+		document.addEventListener('keydown', function(event) {
+			if(event.key === "ArrowLeft" || event.key === "ArrowRight") {
+				// Store current vis before switching
+				lastSelectedVis = visSelect.property('value');
+
+				if (event.key === "ArrowLeft") {
+					currentParticipantIndex = (currentParticipantIndex - 1 + participants.length) % participants.length;
+				} else {
+					currentParticipantIndex = (currentParticipantIndex + 1) % participants.length;
+				}
+
+				participantSelect.property('value', participants[currentParticipantIndex]);
+				updateOptionsAndRender();
+			}
+
+			// Up/Down for visualizations
+			if(event.key === "ArrowUp" || event.key === "ArrowDown") {
+				const visOptions = visSelect.selectAll('option').data();
+				if (!visOptions.length) return;
+				let currentIndex = visOptions.indexOf(visSelect.property('value'));
+
+				if (event.key === "ArrowUp") currentIndex = (currentIndex - 1 + visOptions.length) % visOptions.length;
+				else currentIndex = (currentIndex + 1) % visOptions.length;
+
+				visSelect.property('value', visOptions[currentIndex]);
+				lastSelectedVis = visOptions[currentIndex];
+				updateOptionsAndRender();
+			}
+		});
+
+
+		function render() {
+			const pid = participantSelect.property('value');
+			const vis = visSelect.property('value');
+			const stat = statSelect.property('value');
+
+			const subset = data.filter(d => d.id===pid && d.visType===vis && d.statistic===stat);
+
+			svg.selectAll("*").remove();
+			const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+			if(!subset.length) return;
+
+			// fixed axes
+			const deltaExtent = d3.extent(subset, d=>d.delta);
+			const xScale = d3.scaleLinear().domain(deltaExtent).range([0, subplotW]).nice();
+			const yScale = d3.scaleLinear().domain([-0.08, 1.08]).range([subplotH,0]);
+
+			// --- Grid of exposure subplots ---
+			exposureLevels.forEach((exp, i)=>{
+				const expData = subset.filter(d=>d.exposureTime===exp);
+				const col = i%gridCols;
+				const row = Math.floor(i/gridCols);
+				const xOffset = col*(subplotW+40);
+				const yOffset = row*(subplotH+50);
+
+				const sg = g.append('g').attr('transform', `translate(${xOffset},${yOffset})`);
+
+				// axes
+				sg.append('g').attr('transform', `translate(0,${subplotH})`).call(d3.axisBottom(xScale).ticks(5));
+				sg.append('g').call(d3.axisLeft(yScale).ticks(2));
+
+				sg.append('text').attr('x', subplotW/2).attr('y', -8).attr('text-anchor','middle').text(`${exp} ms`);
+
+				// individual dots
+				sg.selectAll('.dot').data(expData).join('circle')
+					.attr('class','dot')
+					.attr('cx', d=>xScale(d.delta))
+					.attr('cy', d=>yScale(d.correct))
+					.attr('r', 4)
+					.attr('fill','steelblue')
+					.attr('opacity',0.45);
+
+				// binned averages
+				const BIN_COUNT = Math.max(8, Math.min(20, Math.floor(subplotW/20)));
+				const bins = d3.bin().thresholds(BIN_COUNT).value(d=>d.delta)(expData);
+				const probs = bins.map(bin=>{
+					if(!bin.length) return null;
+					return {x:d3.mean(bin,v=>v.delta), p:d3.mean(bin,v=>v.correct)};
+				}).filter(d=>d);
+
+				const line = d3.line().x(d=>xScale(d.x)).y(d=>yScale(d.p)).curve(d3.curveMonotoneX);
+
+				sg.append('path').datum(probs)
+					.attr('d', line)
+					.attr('fill','none')
+					.attr('stroke','orange')
+					.attr('stroke-width',1.25)
+					.attr('stroke-opacity',0.8);
+
+				sg.selectAll('.bin-dot').data(probs).join('circle')
+					.attr('class','bin-dot')
+					.attr('cx', d=>xScale(d.x))
+					.attr('cy', d=>yScale(d.p))
+					.attr('r',4);
+			});
+
+			// --- Psychometric combined plot below ---
+			const psyY = gridCols>0 ? (Math.ceil(exposureLevels.length/gridCols)*(subplotH+50)) : 0;
+			const psyG = g.append('g').attr('transform', `translate(0,${psyY+40})`);
+
+			psyG.append('g').attr('transform', `translate(0,${subplotH})`).call(d3.axisBottom(xScale).ticks(6));
+			psyG.append('g').call(d3.axisLeft(yScale).ticks(2));
+
+			exposureLevels.forEach(exp=>{
+				const expData = subset.filter(d=>d.exposureTime===exp);
+				const BIN_COUNT = Math.max(8, Math.min(30, Math.floor(subplotW/20)));
+				const bins = d3.bin().thresholds(BIN_COUNT).value(d=>d.delta)(expData);
+				const probs = bins.map(bin=>{
+					if(!bin.length) return null;
+					return {x:d3.mean(bin,v=>v.delta), p:d3.mean(bin,v=>v.correct)};
+				}).filter(d=>d);
+
+				const line = d3.line().x(d=>xScale(d.x)).y(d=>yScale(d.p)).curve(d3.curveMonotoneX);
+				psyG.append('path').datum(probs)
+					.attr('d', line)
+					.attr('fill','none')
+					.attr('stroke', colorScale(exp))
+					.attr('class','psych-line');
+			});
+
+			// --- Legend / key for exposure colors ---
+			const legendG = psyG.append('g')
+			    .attr('transform', `translate(${subplotW + 20}, 10)`);
+
+			exposureLevels.forEach((exp,i)=>{
+			    const gLeg = legendG.append('g').attr('transform', `translate(0, ${i*20})`);
+			    gLeg.append('rect')
+			        .attr('width', 12)
+			        .attr('height', 12)
+			        .attr('fill', colorScale(exp));
+			    gLeg.append('text')
+			        .attr('x', 16)
+			        .attr('y', 10)
+			        .attr('font-size', 12)
+			        .text(`${exp} ms`);
+			});
+
+
+			// label
+			psyG.append('text').attr('x', subplotW/2).attr('y', -10).attr('text-anchor','middle').text('Psychometric (all exposures, color-coded)');
+		}
+	})();
+	</script>
+</body>
+</html>
