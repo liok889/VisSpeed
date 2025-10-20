@@ -251,7 +251,6 @@ VisSpeedStim.prototype.perturb = function()
             done = true;
 
             this.computeStats();
-
         }
     }
 }
@@ -306,6 +305,8 @@ function computeLinearTrend(yArray) {
 
 VisSpeedStim.prototype.computeStats = function()
 {
+    var K_DEVIATIONS = 2;
+
     this.mean = 0;
     this.std = 0;
     for (var i=0, len=this.data.length; i<len; i++ ) {
@@ -313,15 +314,40 @@ VisSpeedStim.prototype.computeStats = function()
     }
     this.mean /= this.data.length;
 
-    for (var i=0, len=this.data.length; i<len; i++ ) {
-        this.std += Math.pow(this.data[i] - this.mean, 2);
+    var maxMeanDev = -Number.MAX_VALUE;
+    var avgMeanDev = 0;
+    var deviations = [];
+
+    for (var i=0, len=this.data.length; i<len; i++ )
+    {
+        var dev = Math.abs(this.data[i] - this.mean);
+        maxMeanDev = Math.max(maxMeanDev, dev);
+        avgMeanDev += dev;
+        deviations.push(dev);
+        this.std += Math.pow(dev, 2);
     }
+
+    // standard deviation
     this.std = Math.sqrt(this.std/(this.data.length-1));
+
+    // adverserial mean; based on the top k outliers
+    // top k deviations
+    avgMeanDev /= this.data.length;
+    if (K_DEVIATIONS > 1)
+    {
+        deviations.sort((a, b) => b-a);
+        var topK = deviations.slice(0, K_DEVIATIONS).reduce((a, b) => a + b, 0);
+        this.adverserialMean = (topK / K_DEVIATIONS) / this.std;
+    }
+    else {
+        this.adverserialMean = maxMeanDev / this.std;
+    }
 
     // compute linear trend
     var trend = computeLinearTrend(this.data);
     this.slope = trend.slope;
     this.intercept = trend.intercept;
+
 }
 
 function StimulusPair(classNum)
@@ -386,36 +412,48 @@ function testLimit(value, limit) {
     }
 }
 
+var ADV=true;
 var ADVERSERIAL_PENALTY = 0.5;
-var OBJECTIVE_FUNCS = {
+
+function advMeanCost(s1, s2)
+{
+    const ADVERSERIAL_MEAN_TARGET = Math.log2(2);
+    var avgRatio;
+    if (s1.mean > s2.mean)
+    {
+        // want the lesser main-statistic stimulus to carry the adverserial cue
+        advRatio = s2.adverserialMean / s1.adverserialMean;
+    }
+    else {
+        advRatio = s1.adverserialMean / s2.adverserialMean;
+    }
+
+    // want a target ratio of about log2(ratio)=1
+    // i.e., ADVERSERIAL_MEAN_TARGET x
+    return Math.abs(Math.log2(advRatio)-1);
+}
+
+var OBJECTIVE_FUNCS =
+{
     general: function(s1, s2, stat1, stat2, delta, adverserial) {
         var diff  = Math.abs( Math.abs(s1[stat1]-s2[stat1]) - delta );
         var diff2 = stat2 ? Math.abs(s1[stat2]-s2[stat2]) : 0;
 
         // cost if diff in main stat + 50% of diff second stat
         var cost = diff + diff2 * 0.5;
-        var adv = 0;
-        if (adverserial)
-        {
-            if (s1[stat1] > s2[stat1]) {
-                adv = s2[adverserial] - s1[adverserial];
-            }
-            else {
-                adv = s1[adverserial]-s2[adverserial];
-            }
-        }
+        var adv = adverserial ? adverserial(s1, s2) : 0;
         return cost +  adv * ADVERSERIAL_PENALTY;
     }
-
 }
-StimulusPair.prototype.optimizeEnter = function(mainStat, secondStat, delta)
+
+StimulusPair.prototype.optimizeEnter = function(mainStat, secondStat, delta, adverserial)
 {
     // keep track of optimization time
     var optStartTime = new Date();
 
     var objectiveFunc = function(s1, s2)
     {
-        return OBJECTIVE_FUNCS.general(s1, s2, mainStat, secondStat, delta);
+        return OBJECTIVE_FUNCS.general(s1, s2, mainStat, secondStat, delta, mainStat=='mean' && ADV ? advMeanCost : null);
     }
     var hardLimitTest = mainStat == 'slope' ?
         function(s) {
@@ -423,7 +461,7 @@ StimulusPair.prototype.optimizeEnter = function(mainStat, secondStat, delta)
         }
         : function() { return true };
 
-    
+
     this.optimize(
         // combined objective function
         objectiveFunc,
@@ -436,12 +474,15 @@ StimulusPair.prototype.optimizeEnter = function(mainStat, secondStat, delta)
 
     // output diagnostics
     var solDiff = Math.abs(this.stim2[mainStat]-this.stim1[mainStat]);
+    var secDiff = Math.abs(this.stim2[secondStat]-this.stim1[secondStat]);
     console.log(
         's1: ' + this.stim1[mainStat].toFixed(4) + ', ' +
         's2: ' + this.stim2[mainStat].toFixed(4) + ', ' +
         'diff: ' + solDiff.toFixed(4) + ', ' +
-        'req: ' + delta.toFixed(4)
+        'req: ' + delta.toFixed(4) + ', ' +
+        'secD:' + secDiff.toFixed(4)
     );
+    console.log('adverserialMean: ' + this.stim1.adverserialMean + ", " + this.stim2.adverserialMean);
 }
 
 
