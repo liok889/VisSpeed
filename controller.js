@@ -233,7 +233,8 @@ BlockController.prototype.nextTrial = function(isCorrect)
 
         this.selected = undefined;
 
-        let correctSide = this.correct; // 1 => left, 2 => right
+        let correctSide = this.correct;
+        // 1 => left, 2 => right
         let selectorId = correctSide === 1 ? '#stimulusGroup1' : '#stimulusGroup2';
         let flashes = 0;
         let self = this;
@@ -470,10 +471,6 @@ BlockController.prototype.maskStimulus = function()
     stim2Group.select(".visGroup").style('visibility', 'hidden');
 };
 
-
-// break every k blocks
-var BREAK_EVERY = 0;
-
 function ExperimentControl(blockConfigs, svg, w, h, gap, options = {}) {
     this.svg = svg;
     this.width = w;
@@ -493,7 +490,7 @@ function ExperimentControl(blockConfigs, svg, w, h, gap, options = {}) {
     this.onTrialEnd = function() {};
 
     // Break settings
-    this.breakEveryKBlocks = options.breakInterval ?? BREAK_EVERY; // default every 2 blocks
+    this.breakEveryKBlocks = options.breakInterval ?? 0; // default every 0 blocks
     this.breakMessage = options.breakMessage ?? "Take a short break!";
 
     // engagement checks

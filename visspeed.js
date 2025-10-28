@@ -320,10 +320,14 @@ VisSpeedStim.prototype.computeStats = function()
 
     for (var i=0, len=this.data.length; i<len; i++ )
     {
-        var dev = Math.abs(this.data[i] - this.mean);
-        maxMeanDev = Math.max(maxMeanDev, dev);
-        avgMeanDev += dev;
-        deviations.push(dev);
+        var dev = this.data[i] - this.mean;
+
+        // only positive deviations as outliers
+        if (dev >= 0) {
+            maxMeanDev = Math.max(maxMeanDev, dev);
+            avgMeanDev += dev;
+            deviations.push(dev);
+        }
         this.std += Math.pow(dev, 2);
     }
 
@@ -332,15 +336,22 @@ VisSpeedStim.prototype.computeStats = function()
 
     // adverserial mean; based on the top k outliers
     // top k deviations
-    avgMeanDev /= this.data.length;
-    if (K_DEVIATIONS > 1)
-    {
-        deviations.sort((a, b) => b-a);
-        var topK = deviations.slice(0, K_DEVIATIONS).reduce((a, b) => a + b, 0);
-        this.adverserialMean = (topK / K_DEVIATIONS) / this.std;
+
+    if (deviations.length > 0){
+        avgMeanDev /= deviations.length;
+
+        if (K_DEVIATIONS > 1)
+        {
+            deviations.sort((a, b) => b-a);
+            var topK = deviations.slice(0, K_DEVIATIONS).reduce((a, b) => a + b, 0);
+            this.adverserialMean = (topK / Math.min(deviations.length, K_DEVIATIONS)) / this.std;
+        }
+        else {
+            this.adverserialMean = maxMeanDev / this.std;
+        }
     }
     else {
-        this.adverserialMean = maxMeanDev / this.std;
+        this.adverserialMean = 0;
     }
 
     // compute linear trend
@@ -413,28 +424,121 @@ function testLimit(value, limit) {
 }
 
 var ADV=true;
-var ADVERSERIAL_PENALTY = 0.5;
+var ADVERSERIAL_PENALTY = 0.3;
 
-function advMeanCost(s1, s2)
+// minimal k-means for 1D (2 clusters) — random init + a few iters
+function kmeans2_1d(values, iters=20)
 {
-    const ADVERSERIAL_MEAN_TARGET = Math.log2(2);
-    var avgRatio;
-    if (s1.mean > s2.mean)
-    {
-        // want the lesser main-statistic stimulus to carry the adverserial cue
-        advRatio = s2.adverserialMean / s1.adverserialMean;
-    }
-    else {
-        advRatio = s1.adverserialMean / s2.adverserialMean;
+    if (values.length < 2) return null;
+
+    // init centroids: min and max
+    var c1 = Math.min(...values);
+    var c2 = Math.max(...values);
+    var assign = new Array(values.length);
+
+    for (let it=0; it<iters; it++) {
+        // assign
+        for (let i=0;i<values.length;i++){
+            assign[i] = Math.abs(values[i]-c1) < Math.abs(values[i]-c2) ? 1 : 2;
+        }
+
+        // recompute
+        const g1 = values.filter((v,i)=>assign[i]===1);
+        const g2 = values.filter((v,i)=>assign[i]===2);
+
+        if (g1.length===0 || g2.length===0) break;
+
+        const nc1 = g1.reduce((a,b)=>a+b,0)/g1.length;
+        const nc2 = g2.reduce((a,b)=>a+b,0)/g2.length;
+
+        if (nc1===c1 && nc2===c2) break;
+        c1 = nc1; c2 = nc2;
     }
 
-    // want a target ratio of about log2(ratio)=1
-    // i.e., ADVERSERIAL_MEAN_TARGET x
-    return Math.abs(Math.log2(advRatio)-1);
+    const g1 = values.filter((v,i)=>assign[i]===1);
+    const g2 = values.filter((v,i)=>assign[i]===2);
+    if (g1.length < 2 || g2.length < 2) return null;
+
+    const mu1 = g1.reduce((a,b)=>a+b,0)/g1.length;
+    const mu2 = g2.reduce((a,b)=>a+b,0)/g2.length;
+
+    const s1 = Math.sqrt(g1.reduce((a,b)=>a + Math.pow(b-mu1,2),0)/(g1.length-1));
+    const s2 = Math.sqrt(g2.reduce((a,b)=>a + Math.pow(b-mu2,2),0)/(g2.length-1));
+
+    const n1 = g1.length, n2 = g2.length;
+    const pooled = Math.sqrt(((n1-1)*s1*s1 + (n2-1)*s2*s2) / (n1+n2-2));
+    const sep = pooled>0 ? Math.abs(mu1-mu2)/pooled : 0;
+
+    return {
+        mu1,mu2,
+        s1,s2,
+        n1,n2,
+        sep
+    };
 }
 
 var OBJECTIVE_FUNCS =
 {
+    adv_std: function(s1, s2) {
+
+        // this corresponds to the difference between 0.8 (small) and 1.2 (large) separation
+        const ADVERSERIAL_STD_TARGET = Math.log2( 1.5 );
+
+        var kmeans1 = kmeans2_1d(s1.data);
+        var kmeans2 = kmeans2_1d(s2.data);
+
+        var sep1 = kmeans1.sep;
+        var sep2 = kmeans2.sep;
+
+        /* interpreting the separation:
+            < 0.8 small;
+            0.8–1.2 moderate;
+            >1.2 viewers will likely see two clusters when allowed to inspect -> adversarial
+        */
+
+        // difference in separation
+        var sepRatio;
+        if (s1.std > s2.std) {
+            sepRatio = sep2 / sep1;
+        }
+        else {
+            sepRatio = sep1 / sep2;
+        }
+
+        s1.adv_std = sep1;
+        s2.adv_std = sep2;
+
+        return Math.abs(
+            Math.log2(sepRatio) -
+            ADVERSERIAL_STD_TARGET
+        );
+
+    },
+
+    adv_mean: function(s1, s2)
+    {
+        // want a target ratio of about log2(ratio)=1
+        // i.e., ADVERSERIAL_MEAN_TARGET x
+        const ADVERSERIAL_MEAN_TARGET = Math.log2(2);
+        var avgRatio;
+        if (s1.mean > s2.mean)
+        {
+            // want the lesser main-statistic stimulus to carry the adverserial cue
+            advRatio = s2.adverserialMean / s1.adverserialMean;
+        }
+        else {
+            advRatio = s1.adverserialMean / s2.adverserialMean;
+        }
+
+        s1.adv_mean = s1.adverserialMean;
+        s2.adv_mean = s2.adverserialMean;
+
+        return Math.abs(
+            Math.log2(advRatio) -
+            ADVERSERIAL_MEAN_TARGET
+        );
+    },
+
     general: function(s1, s2, stat1, stat2, delta, adverserial) {
         var diff  = Math.abs( Math.abs(s1[stat1]-s2[stat1]) - delta );
         var diff2 = stat2 ? Math.abs(s1[stat2]-s2[stat2]) : 0;
@@ -453,7 +557,8 @@ StimulusPair.prototype.optimizeEnter = function(mainStat, secondStat, delta, adv
 
     var objectiveFunc = function(s1, s2)
     {
-        return OBJECTIVE_FUNCS.general(s1, s2, mainStat, secondStat, delta, mainStat=='mean' && ADV ? advMeanCost : null);
+        var advFunc = ADV ? OBJECTIVE_FUNCS['adv_' + mainStat] : null;
+        return OBJECTIVE_FUNCS.general(s1, s2, mainStat, secondStat, delta, advFunc);
     }
     var hardLimitTest = mainStat == 'slope' ?
         function(s) {
@@ -482,7 +587,13 @@ StimulusPair.prototype.optimizeEnter = function(mainStat, secondStat, delta, adv
         'req: ' + delta.toFixed(4) + ', ' +
         'secD:' + secDiff.toFixed(4)
     );
-    console.log('adverserialMean: ' + this.stim1.adverserialMean + ", " + this.stim2.adverserialMean);
+
+    if (ADV) {
+        console.log('adv: ' +
+            this.stim1['adv_' + mainStat].toFixed(3) + ", " +
+            this.stim2['adv_' + mainStat].toFixed(3)
+        );
+    }
 }
 
 
