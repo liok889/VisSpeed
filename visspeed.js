@@ -479,6 +479,7 @@ function kmeans2_1d(values, iters=20)
 
 var OBJECTIVE_FUNCS =
 {
+    /*
     adv_std: function(s1, s2) {
 
         // this corresponds to the difference between 0.8 (small) and 1.2 (large) separation
@@ -490,11 +491,10 @@ var OBJECTIVE_FUNCS =
         var sep1 = kmeans1.sep;
         var sep2 = kmeans2.sep;
 
-        /* interpreting the separation:
-            < 0.8 small;
-            0.8–1.2 moderate;
-            >1.2 viewers will likely see two clusters when allowed to inspect -> adversarial
-        */
+        // interpreting the separation:
+        //    < 0.8 small;
+        //    0.8–1.2 moderate;
+        //    >1.2 viewers will likely see two clusters when allowed to inspect -> adversarial
 
         // difference in separation
         var sepRatio;
@@ -514,6 +514,54 @@ var OBJECTIVE_FUNCS =
         );
 
     },
+    */
+
+
+    adv_std: function(s1, s2) {
+        function momentum(data, _minWindow, _maxWindow)
+        {
+            const n = data.length;
+            const MIN_WINDOW = _minWindow || Math.max(5, Math.floor(0.5 + n * 0.25));
+            const MAX_WINDOW = _maxWindow || Math.max(8, Math.floor(0.5 + n * 0.5));
+
+            // Precompute absolute diffs and prefix sums
+            const D = new Array(n-1);
+            for (let x=0; x<n-1; x++) D[x] = Math.abs(data[x+1] - data[x]);
+            const P = [0];
+            for (let x=0; x<D.length; x++) P.push(P[P.length-1] + D[x]);
+
+            let minLocalDelta = Infinity;
+            for (let i=0; i<n; i++) {
+                for (let w=MIN_WINDOW; w<=MAX_WINDOW && i+w<=n; w++) {
+                    const j = i + w - 1;
+                    const localSum = P[j] - P[i];
+                    const localDelta = localSum / (w - 1);
+                    if (localDelta < minLocalDelta)
+                        minLocalDelta = localDelta;
+                }
+            }
+
+            return minLocalDelta;
+        }
+
+        const ADVERSERIAL_MEAN_TARGET = Math.log2(2);
+
+        s1.adv_std = momentum(s1.data);
+        s2.adv_std = momentum(s2.data);
+        var advRatio;
+        if (s1.std > s2.std) {
+            advRatio = s1.adv_std / s2.adv_std;
+        }
+        else {
+            advRatio = s2.adv_std / s1.adv_std;
+        }
+        return Math.abs(
+            Math.log2(advRatio) -
+            ADVERSERIAL_MEAN_TARGET
+        );
+    },
+
+
 
     adv_mean: function(s1, s2)
     {
@@ -555,9 +603,9 @@ StimulusPair.prototype.optimizeEnter = function(mainStat, secondStat, delta, adv
     // keep track of optimization time
     var optStartTime = new Date();
 
+    var advFunc = ADV ? OBJECTIVE_FUNCS['adv_' + mainStat] : null;
     var objectiveFunc = function(s1, s2)
     {
-        var advFunc = ADV ? OBJECTIVE_FUNCS['adv_' + mainStat] : null;
         return OBJECTIVE_FUNCS.general(s1, s2, mainStat, secondStat, delta, advFunc);
     }
     var hardLimitTest = mainStat == 'slope' ?
@@ -588,7 +636,7 @@ StimulusPair.prototype.optimizeEnter = function(mainStat, secondStat, delta, adv
         'secD:' + secDiff.toFixed(4)
     );
 
-    if (ADV) {
+    if (ADV && advFunc) {
         console.log('adv: ' +
             this.stim1['adv_' + mainStat].toFixed(3) + ", " +
             this.stim2['adv_' + mainStat].toFixed(3)
