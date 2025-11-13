@@ -260,10 +260,16 @@
             if (STATISTIC) {
                 blockConfigs[i].mode = STATISTIC;
             }
+            /*
             if (TEST) {
                 blockConfigs[i].trialCount=2;
                 blockConfigs[i].engagementCount=0;
             }
+            */
+        }
+        if (TEST) {
+            INDEFINITE_EXPOSURE=true;
+            TRAINING=true;
         }
 
         function updateSVGLayout()

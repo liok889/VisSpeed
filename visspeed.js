@@ -424,7 +424,9 @@ function testLimit(value, limit) {
 }
 
 var ADV=true;
-var ADVERSERIAL_PENALTY = 0.3;
+var ADVERSERIAL_PENALTY_MEAN = 0.3;
+var ADVERSERIAL_PENALTY_STD = 0.2;
+var ADVERSERIAL_PENALTY_SLOPE = 0.15;
 
 // minimal k-means for 1D (2 clusters) — random init + a few iters
 function kmeans2_1d(values, iters=20)
@@ -516,19 +518,53 @@ var OBJECTIVE_FUNCS =
     },
     */
 
+    adv_slope: function(s1, s2)
+    {
+        const ADVERSERIAL_SLOPE_TARGET = Math.log2(2);
+
+        function localReversal(data, slope) {
+            const n = data.length;
+
+            var inv = 0;
+            for (var x=0; x<n-1; x++) {
+                inv += Math.abs( Math.sign(data[x+1]-data[x]) - Math.sign(slope) );
+            }
+            return inv / (n-1);
+        }
+
+        s1.adv_slope = localReversal(s1.data, s1.slope);
+        s2.adv_slope = localReversal(s2.data, s2.slope);
+
+        var reversalRatio;
+        if (s1.slope > s2.slope) {
+            reversalRatio = s1.adv_slope / s2.adv_slope;
+        }
+        else {
+            reversalRatio = s2.adv_slope / s1.adv_slope;
+        }
+        return Math.abs(
+            Math.log2(reversalRatio) -
+            ADVERSERIAL_SLOPE_TARGET
+        ) * ADVERSERIAL_PENALTY_SLOPE;
+    },
 
     adv_std: function(s1, s2) {
         function momentum(data, _minWindow, _maxWindow)
         {
             const n = data.length;
-            const MIN_WINDOW = _minWindow || Math.max(5, Math.floor(0.5 + n * 0.25));
-            const MAX_WINDOW = _maxWindow || Math.max(8, Math.floor(0.5 + n * 0.5));
+            const MIN_WINDOW = _minWindow || Math.max(3, Math.floor(0.5 + n * 0.25));
+            const MAX_WINDOW = _maxWindow || Math.max(5, Math.floor(0.5 + n * 0.5));
 
             // Precompute absolute diffs and prefix sums
-            const D = new Array(n-1);
-            for (let x=0; x<n-1; x++) D[x] = Math.abs(data[x+1] - data[x]);
-            const P = [0];
-            for (let x=0; x<D.length; x++) P.push(P[P.length-1] + D[x]);
+            var D = new Array(n-1);
+            var P = new Array(n); P[0] = 0;
+
+            for (var x=0; x<n-1; x++) {
+                D[x] = Math.abs(data[x+1] - data[x]);
+                P[x+1] = P[x] + D[x];
+            }
+
+            //for (let x=0; x<D.length; x++) P.push(P[P.length-1] + D[x]);
 
             let minLocalDelta = Infinity;
             for (let i=0; i<n; i++) {
@@ -544,24 +580,22 @@ var OBJECTIVE_FUNCS =
             return minLocalDelta;
         }
 
-        const ADVERSERIAL_MEAN_TARGET = Math.log2(2);
+        const ADVERSERIAL_STD_TARGET = Math.log2(2);
 
         s1.adv_std = momentum(s1.data);
         s2.adv_std = momentum(s2.data);
         var advRatio;
         if (s1.std > s2.std) {
-            advRatio = s1.adv_std / s2.adv_std;
+            advRatio = s2.adv_std / s1.adv_std;
         }
         else {
-            advRatio = s2.adv_std / s1.adv_std;
+            advRatio = s1.adv_std / s2.adv_std;
         }
         return Math.abs(
             Math.log2(advRatio) -
-            ADVERSERIAL_MEAN_TARGET
-        );
+            ADVERSERIAL_STD_TARGET
+        ) * ADVERSERIAL_PENALTY_STD;
     },
-
-
 
     adv_mean: function(s1, s2)
     {
@@ -584,7 +618,7 @@ var OBJECTIVE_FUNCS =
         return Math.abs(
             Math.log2(advRatio) -
             ADVERSERIAL_MEAN_TARGET
-        );
+        ) * ADVERSERIAL_PENALTY_MEAN;
     },
 
     general: function(s1, s2, stat1, stat2, delta, adverserial) {
@@ -594,7 +628,7 @@ var OBJECTIVE_FUNCS =
         // cost if diff in main stat + 50% of diff second stat
         var cost = diff + diff2 * 0.5;
         var adv = adverserial ? adverserial(s1, s2) : 0;
-        return cost +  adv * ADVERSERIAL_PENALTY;
+        return cost +  adv;
     }
 }
 
@@ -642,6 +676,7 @@ StimulusPair.prototype.optimizeEnter = function(mainStat, secondStat, delta, adv
             this.stim2['adv_' + mainStat].toFixed(3)
         );
     }
+    console.log("time: " + this.optTime);
 }
 
 
