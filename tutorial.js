@@ -8,8 +8,8 @@ var MEDIUM_STD = 0.2;
 var EASY_SLOPE = 0.8;
 var MEDIUM_SLOPE = 0.6;
 
-var W = 200;
-var H = 100;
+var W = 250;
+var H = 120;
 var GAP = 100;
 var PAD=25;
 
