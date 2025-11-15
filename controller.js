@@ -2,27 +2,39 @@
 var FIXATION_TIME = 800;
 var FIXATION_TIME_RAND = 300;
 
+// training mode (provdies feedback)
 var TRAINING = false;
+
+// overrides exposure time
 var INDEFINITE_EXPOSURE = false;
 
+// difficulty parameters for engagement checks
 const ENGAGEMENT_DELTA = {
     mean: 0.7,
     std: 0.35,
     slope: 0.8
 };
 
+// secondary statistic to optimize
 const SECONDARY_STAT = {
     mean: 'std',
     std: 'mean',
     slope: 'mean',
 };
 
+// staircase parameters
 const STAIRCASE = {
     mean: {initialDelta: 0.25, stepSize: 0.025, minDelta: 0.00001, maxDelta: 0.95},
     std: {initialDelta: 0.15, stepSize: 0.0125, minDelta: 0.00001, maxDelta: 0.5},
     slope: {initialDelta: 0.4, stepSize: 0.025, minDelta: 0.00001, maxDelta: 1.0}
 };
 
+// whether to include adversarial trials
+// (proprtion of trials generated as adversarial)
+var ADVERSARIAL_RATIO = 0.5;
+
+
+// audio feedback (per trial)
 const SOUND_FEEDBACK = false;
 var audioCorrect, audioIncorrect;
 if (SOUND_FEEDBACK)
@@ -63,6 +75,21 @@ function BlockController(options)
     }
     this.engagementResults = { correct: 0, total: 0 };
 
+    // deal with adversarial trials
+    this.adversarialTrials = [];
+    this.advCount = Math.floor(ADVERSARIAL_RATIO * this.trialCount);
+    for (var i=0; i<this.trialCount; i++) {
+        this.adversarialTrials.push(i<this.advCount ? 1 : 0);
+    }
+
+    // shuffle the position of adversarial trials
+    shuffle(this.adversarialTrials);
+
+    // ensure that first trial is not adversarial
+    while (this.adversarialTrials[0] == 1) {
+        this.adversarialTrials.shift();
+        this.adversarialTrials.push(1);
+    }
 
     // User-defined callback when a placeholder is clicked
     this.onSelect = options.onSelect || function(selectedIndex) {
@@ -70,6 +97,8 @@ function BlockController(options)
     };
 
     this.delta = this.initialDelta;
+    this.deltaAdversarial = this.initialDelta;
+
     this.reversals = 0;
     this.lastDirection = null;
 
@@ -119,16 +148,31 @@ BlockController.prototype.generateTrial = function()
 
     var currentIndex = this.data.length;
     var isEngagementTrial = false;
+    var isAdversarial = false;
+
     if (this.engagementIndices.length > 0 && this.engagementIndices[0] === currentIndex) {
         isEngagementTrial = true;
         this.engagementIndices.shift(); // remove it so it's not reused
     }
+    else {
+        // look up whether this trial is adversarial
+        isAdversarial = this.adversarialTrials[this.data.length];
+    }
 
-    var delta = isEngagementTrial || this.data.length==0 ? ENGAGEMENT_DELTA[this.mode] : this.delta;
+    var delta;
+    if (isEngagementTrial || this.data.length == 0) {
+        delta = ENGAGEMENT_DELTA[this.mode];
+    }
+    else if (isAdversarial) {
+        delta = this.deltaAdversarial;
+    }
+    else {
+        delta = this.delta;
+    }
     var primary= this.mode;
     var secondary = SECONDARY_STAT[this.mode];
 
-    this.stimPair.optimizeEnter(primary, secondary, delta);
+    this.stimPair.optimizeEnter(primary, secondary, delta, isAdversarial);
     if (this.stimPair.stim1[primary] > this.stimPair.stim2[primary]) {
         this.correct = 1;
     }
@@ -146,6 +190,7 @@ BlockController.prototype.generateTrial = function()
         deltaSecondary: actualSecondaryDelta,
         correct: undefined,
         trialNum: this.data.length+1,
+        adversarial: isAdversarial,
         generationTime: Date.now() - generationTime,
         isEngagement: isEngagementTrial,
         fixationTime: FIXATION_TIME,
@@ -159,6 +204,10 @@ BlockController.prototype.generateTrial = function()
         slope2: this.stimPair.stim2.slope,
         intercept1: this.stimPair.stim1.intercept,
         intercept2: this.stimPair.stim2.intercept,
+
+        // record adversarial
+        adv1: isAdversarial ? this.stimPair.stim1['adv_' + this.mode] : 0,
+        adv2: isAdversarial ? this.stimPair.stim2['adv_' + this.mode] : 0,
 
         data1: this.stimPair.stim1.data,
         data2: this.stimPair.stim2.data,
@@ -262,18 +311,27 @@ BlockController.prototype.nextTrial = function(isCorrect)
         this.onTrialEnd();
     }
 
-    const oldDelta = this.delta;
+    const isAdversarial = this.curTrial.adversarial;
+    const oldDelta = isAdversarial ? this.deltaAdversarial : this.delta;
+    var newDelta;
+
     let direction;
     if (isCorrect)
     {
         // one down
-        this.delta = Math.max(this.minDelta, this.delta - this.stepSize);
+        newDelta = Math.max(this.minDelta, oldDelta - this.stepSize);
         direction = 'down';
     } else
     {
         // two up
-        this.delta = Math.min(this.maxDelta, this.delta + 2 * this.stepSize);
+        newDelta = Math.min(this.maxDelta, oldDelta + 2 * this.stepSize);
         direction = 'up';
+    }
+    if (isAdversarial) {
+        this.deltaAdversarial = newDelta;
+    }
+    else {
+        this.delta = newDelta;
     }
 
     if (this.lastDirection && direction !== this.lastDirection) {
