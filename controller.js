@@ -77,7 +77,7 @@ function BlockController(options)
 
     // deal with adversarial trials
     this.adversarialTrials = [];
-    this.advCount = Math.floor(ADVERSARIAL_RATIO * this.trialCount);
+    this.advCount = TRAINING ? 0 : Math.floor(ADVERSARIAL_RATIO * this.trialCount);
     for (var i=0; i<this.trialCount; i++) {
         this.adversarialTrials.push(i<this.advCount ? 1 : 0);
     }
@@ -148,7 +148,7 @@ BlockController.prototype.generateTrial = function()
 
     var currentIndex = this.data.length;
     var isEngagementTrial = false;
-    var isAdversarial = false;
+    var adversarialarial = false;
 
     if (this.engagementIndices.length > 0 && this.engagementIndices[0] === currentIndex) {
         isEngagementTrial = true;
@@ -190,7 +190,7 @@ BlockController.prototype.generateTrial = function()
         deltaSecondary: actualSecondaryDelta,
         correct: undefined,
         trialNum: this.data.length+1,
-        adversarial: isAdversarial,
+        adversarial: adversarialarial,
         generationTime: Date.now() - generationTime,
         isEngagement: isEngagementTrial,
         fixationTime: FIXATION_TIME,
@@ -206,8 +206,8 @@ BlockController.prototype.generateTrial = function()
         intercept2: this.stimPair.stim2.intercept,
 
         // record adversarial
-        adv1: isAdversarial ? this.stimPair.stim1['adv_' + this.mode] : 0,
-        adv2: isAdversarial ? this.stimPair.stim2['adv_' + this.mode] : 0,
+        adv1: adversarialarial ? this.stimPair.stim1['adv_' + this.mode] : 0,
+        adv2: adversarialarial ? this.stimPair.stim2['adv_' + this.mode] : 0,
 
         data1: this.stimPair.stim1.data,
         data2: this.stimPair.stim2.data,
@@ -311,8 +311,8 @@ BlockController.prototype.nextTrial = function(isCorrect)
         this.onTrialEnd();
     }
 
-    const isAdversarial = this.curTrial.adversarial;
-    const oldDelta = isAdversarial ? this.deltaAdversarial : this.delta;
+    const adversarialarial = this.curTrial.adversarial;
+    const oldDelta = adversarialarial ? this.deltaAdversarial : this.delta;
     var newDelta;
 
     let direction;
@@ -327,7 +327,7 @@ BlockController.prototype.nextTrial = function(isCorrect)
         newDelta = Math.min(this.maxDelta, oldDelta + 2 * this.stepSize);
         direction = 'up';
     }
-    if (isAdversarial) {
+    if (adversarialarial) {
         this.deltaAdversarial = newDelta;
     }
     else {
