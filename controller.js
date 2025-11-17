@@ -58,6 +58,10 @@ function BlockController(options)
     this.trialCount = (options.trialCount || 0);
     this.trialsShown = 0;
 
+    // trial counter
+    this.trialsCounter = 0;
+    this.trialsAdvCounter = 0;
+
     this.width = options.width || 100;
     this.height = options.height || 50;
 
@@ -189,7 +193,8 @@ BlockController.prototype.generateTrial = function()
         delta: actualDelta,
         deltaSecondary: actualSecondaryDelta,
         correct: undefined,
-        trialNum: this.data.length+1,
+        seqNum: this.data.length+1,
+        trialNum: (isAdversarial ? this.trialsAdvCounter++ : this.trialsCounter++)+1,
         adversarial: isAdversarial ? 1 : 0,
         generationTime: Date.now() - generationTime,
         isEngagement: isEngagementTrial,
