@@ -194,7 +194,7 @@ BlockController.prototype.generateTrial = function()
         deltaSecondary: actualSecondaryDelta,
         correct: undefined,
         seqNum: this.data.length+1,
-        trialNum: (isAdversarial ? this.trialsAdvCounter++ : this.trialsCounter++)+1,
+        trialNum: (isAdversarial ? this.trialsAdvCounter : this.trialsCounter) + 1,
         adversarial: isAdversarial ? 1 : 0,
         generationTime: Date.now() - generationTime,
         isEngagement: isEngagementTrial,
@@ -334,9 +334,11 @@ BlockController.prototype.nextTrial = function(isCorrect)
     }
     if (isAdversarial) {
         this.deltaAdversarial = newDelta;
+        this.trialsAdvCounter++;
     }
     else {
         this.delta = newDelta;
+        this.trialsCounter++;
     }
 
     if (this.lastDirection && direction !== this.lastDirection) {
