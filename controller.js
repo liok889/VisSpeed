@@ -321,30 +321,39 @@ BlockController.prototype.nextTrial = function(isCorrect)
     var newDelta;
 
     let direction;
-    if (isCorrect)
+    if (!this.curTrial.isEngagement)
     {
-        // one down
-        newDelta = Math.max(this.minDelta, oldDelta - this.stepSize);
-        direction = 'down';
-    } else
-    {
-        // two up
-        newDelta = Math.min(this.maxDelta, oldDelta + 2 * this.stepSize);
-        direction = 'up';
-    }
-    if (isAdversarial) {
-        this.deltaAdversarial = newDelta;
-        this.trialsAdvCounter++;
-    }
-    else {
-        this.delta = newDelta;
-        this.trialsCounter++;
-    }
+        // go up/down the staircase
+        if (isCorrect)
+        {
+            // one down
+            newDelta = Math.max(this.minDelta, oldDelta - this.stepSize);
+            direction = 'down';
+            console.log('down');
+        } else
+        {
+            // two up
+            newDelta = Math.min(this.maxDelta, oldDelta + 2 * this.stepSize);
+            direction = 'up';
+            console.log('up');
+        }
+        if (isAdversarial) {
+            this.deltaAdversarial = newDelta;
+            this.trialsAdvCounter++;
+            console.log('counter Adv: ' + this.trialsAdvCounter)
+        }
+        else {
+            this.delta = newDelta;
+            this.trialsCounter++;
+            console.log('counter: ' + this.trialsCounter)
 
-    if (this.lastDirection && direction !== this.lastDirection) {
-        this.reversals++;
+        }
+
+        if (this.lastDirection && direction !== this.lastDirection) {
+            this.reversals++;
+        }
+        this.lastDirection = direction;
     }
-    this.lastDirection = direction;
 
 
     // play sound
