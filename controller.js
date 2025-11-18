@@ -663,7 +663,7 @@ ExperimentControl.prototype.nextBlock = function(returnFromBreak) {
 ExperimentControl.prototype.showBreakModal = function(remainingBlocks, ) {
     const modal = document.getElementById("breakModal");
     const message = document.getElementById("breakMessage");
-    const button = document.getElementById("continueButton");
+    //const button = document.getElementById("continueButton");
 
     /*
     message.innerHTML =
@@ -674,12 +674,28 @@ ExperimentControl.prototype.showBreakModal = function(remainingBlocks, ) {
     */
 
     modal.style.display = "flex";
+    (function(_modal, _this) {
+        d3.select(document).on('keydown.breakRemove', function()
+        {
+            if (d3.event.keyCode == 32 || d3.event.keyCode === 13)
+            {
+                d3.select(document).on('keydown.breakRemove', null);
+                _modal.style.display = "none";
+                console.log('resuming blocks');
+                _this.nextBlock(true); // Resume the experiment
+            }
+        });
+    })(modal, this);
 
+
+    /*
     button.onclick = () => {
         modal.style.display = "none";
         console.log('resuming blocks');
         this.nextBlock(true); // Resume the experiment
     };
+    */
+
 };
 
 ExperimentControl.prototype.calculateStimulusAccuracy = function()
