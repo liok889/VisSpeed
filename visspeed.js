@@ -625,17 +625,19 @@ StimulusPair.prototype.optimizeEnter = function(mainStat, secondStat, delta, adv
     // output diagnostics
     var solDiff = Math.abs(this.stim2[mainStat]-this.stim1[mainStat]);
     var secDiff = Math.abs(this.stim2[secondStat]-this.stim1[secondStat]);
+
     console.log(
-        's1: ' + this.stim1[mainStat].toFixed(4) + ', ' +
-        's2: ' + this.stim2[mainStat].toFixed(4) + ', ' +
+        //'s1: ' + this.stim1[mainStat].toFixed(4) + ', ' +
+        //'s2: ' + this.stim2[mainStat].toFixed(4) + ', ' +
         'diff: ' + solDiff.toFixed(4) + ', ' +
         'req: ' + delta.toFixed(4) + ', ' +
         'secD:' + secDiff.toFixed(4)
     );
 
+
     if (advFunc) {
-        console.log('adv: ' +
-            'strength: ' + advStrength +
+        console.log('ADVERS: ' +
+            'strength: ' + advStrength + ', vals: ' +
             this.stim1['adv_' + mainStat].toFixed(3) + ", " +
             this.stim2['adv_' + mainStat].toFixed(3)
         );

@@ -27,9 +27,9 @@ const STAIRCASE = {
     mean: {initialDelta: 0.25, stepSize: 0.025, minDelta: 0.00001, maxDelta: 0.95},
     std: {initialDelta: 0.15, stepSize: 0.0125, minDelta: 0.00001, maxDelta: 0.5},
     slope: {initialDelta: 0.4, stepSize: 0.025, minDelta: 0.00001, maxDelta: 1.0},
-    0: { adversarial: false, advStrength: 0 },
-    1: { adversarial: true, advStrength: 1 },
-    2: { adversarial: true, advStrength: 3 }
+    0: { adversarial: true, advStrength: 1 },
+    1: { adversarial: true, advStrength: 1.5 },
+    2: { adversarial: true, advStrength: 2.3 }
 };
 var STAIRCASE_COUNT = 3;
 
@@ -219,7 +219,6 @@ BlockController.prototype.generateTrial = function()
     var isEngagementTrial = false;
     var staircaseNum = null;
     var staircase = null;
-    console.log("data len: " + this.data.length);
 
     if (this.engagementIndices.length > 0 && this.engagementIndices[0] === currentIndex) {
         isEngagementTrial = true;
