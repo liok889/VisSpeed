@@ -481,9 +481,9 @@ function kmeans2_1d(values, iters=20)
 var OBJECTIVE_FUNCS =
 {
 
-    adv_slope: function(s1, s2)
+    adv_slope: function(s1, s2, advStrength)
     {
-        const ADVERSARIAL_SLOPE_TARGET = Math.log2(2);
+        const ADVERSARIAL_SLOPE_TARGET = advStrength ? Math.log2(advStrength) : Math.log2(2);;
 
         function localReversal(data, slope) {
             const n = data.length;
@@ -511,7 +511,7 @@ var OBJECTIVE_FUNCS =
         ) * ADVERSARIAL_PENALTY_SLOPE;
     },
 
-    adv_std: function(s1, s2) {
+    adv_std: function(s1, s2, advStrength) {
         function momentum(data, _minWindow, _maxWindow)
         {
             const n = data.length;
@@ -543,7 +543,7 @@ var OBJECTIVE_FUNCS =
             return minLocalDelta;
         }
 
-        const ADVERSARIAL_STD_TARGET = Math.log2(2);
+        const ADVERSARIAL_STD_TARGET = advStrength ? Math.log2(advStrength) : Math.log2(2);
 
         s1.adv_std = momentum(s1.data);
         s2.adv_std = momentum(s2.data);
@@ -560,11 +560,11 @@ var OBJECTIVE_FUNCS =
         ) * ADVERSARIAL_PENALTY_STD;
     },
 
-    adv_mean: function(s1, s2)
+    adv_mean: function(s1, s2, advStrength)
     {
         // want a target ratio of about log2(ratio)=1
         // i.e., ADVERSARIAL_MEAN_TARGET x
-        const ADVERSARIAL_MEAN_TARGET = Math.log2(2);
+        const ADVERSARIAL_MEAN_TARGET = advStrength ? Math.log2(advStrength) : Math.log2(2);
         var avgRatio;
         if (s1.mean > s2.mean)
         {
@@ -584,18 +584,18 @@ var OBJECTIVE_FUNCS =
         ) * ADVERSARIAL_PENALTY_MEAN;
     },
 
-    general: function(s1, s2, stat1, stat2, delta, adversarial) {
+    general: function(s1, s2, stat1, stat2, delta, adversarial, advStrength) {
         var diff  = Math.abs( Math.abs(s1[stat1]-s2[stat1]) - delta );
         var diff2 = stat2 ? Math.abs(s1[stat2]-s2[stat2]) : 0;
 
         // cost if diff in main stat + 50% of diff second stat
         var cost = diff + diff2 * 0.5;
-        var adv = adversarial ? adversarial(s1, s2) : 0;
+        var adv = adversarial ? adversarial(s1, s2, advStrength) : 0;
         return cost +  adv;
     }
 }
 
-StimulusPair.prototype.optimizeEnter = function(mainStat, secondStat, delta, adversarial)
+StimulusPair.prototype.optimizeEnter = function(mainStat, secondStat, delta, adversarial, advStrength)
 {
     // keep track of optimization time
     var optStartTime = new Date();
@@ -603,7 +603,7 @@ StimulusPair.prototype.optimizeEnter = function(mainStat, secondStat, delta, adv
     var advFunc = adversarial ? OBJECTIVE_FUNCS['adv_' + mainStat] : null;
     var objectiveFunc = function(s1, s2)
     {
-        return OBJECTIVE_FUNCS.general(s1, s2, mainStat, secondStat, delta, advFunc);
+        return OBJECTIVE_FUNCS.general(s1, s2, mainStat, secondStat, delta, advFunc, advStrength);
     }
     var hardLimitTest = mainStat == 'slope' ?
         function(s) {
@@ -635,6 +635,7 @@ StimulusPair.prototype.optimizeEnter = function(mainStat, secondStat, delta, adv
 
     if (advFunc) {
         console.log('adv: ' +
+            'strength: ' + advStrength +
             this.stim1['adv_' + mainStat].toFixed(3) + ", " +
             this.stim2['adv_' + mainStat].toFixed(3)
         );

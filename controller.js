@@ -26,8 +26,12 @@ const SECONDARY_STAT = {
 const STAIRCASE = {
     mean: {initialDelta: 0.25, stepSize: 0.025, minDelta: 0.00001, maxDelta: 0.95},
     std: {initialDelta: 0.15, stepSize: 0.0125, minDelta: 0.00001, maxDelta: 0.5},
-    slope: {initialDelta: 0.4, stepSize: 0.025, minDelta: 0.00001, maxDelta: 1.0}
+    slope: {initialDelta: 0.4, stepSize: 0.025, minDelta: 0.00001, maxDelta: 1.0},
+    0: { adversarial: false, advStrength: 0 },
+    1: { adversarial: true, advStrength: 1 },
+    2: { adversarial: true, advStrength: 3 }
 };
+var STAIRCASE_COUNT = 3;
 
 // whether to include adversarial trials
 // (proprtion of trials generated as adversarial)
@@ -42,6 +46,60 @@ if (SOUND_FEEDBACK)
     audioCorrect = new Audio('sound_correct.wav');
     audioIncorrect = new Audio('sound_error.wav');
 }
+
+function Staircase(mode, staircaseNum, trialCount)
+{
+    this.mode = mode;
+    this.delta = STAIRCASE[this.mode].initialDelta;
+    this.stepSize = STAIRCASE[this.mode].stepSize;
+    this.minDelta = STAIRCASE[this.mode].minDelta;
+    this.maxDelta = STAIRCASE[this.mode].maxDelta;
+
+    this.adversarial = STAIRCASE[staircaseNum].adversarial;
+    this.advStrength = STAIRCASE[staircaseNum].advStrength;
+
+    // reversals
+    this.reversals = 0;
+    this.lastDirection = null;
+
+    // counter for number of trials
+    this.trialCounter = 0;
+}
+
+Staircase.prototype.advance = function(correct)
+{
+    var direction;
+    if (correct) {
+        this.delta = Math.max(this.minDelta, this.delta - this.stepSize);
+        direction = 'down';
+    }
+    else {
+        this.delta = Math.min(this.maxDelta, this.delta + 2 * this.stepSize);
+        direction = 'up';
+    }
+
+    if (this.lastDirection)
+    {
+        if (direction != this.lastDirection) {
+            this.reversals++;
+        }
+        this.lastDirection = direction;
+    }
+    this.trialCounter++;
+}
+Staircase.prototype.getCurrentDelta = function() {
+    return this.delta;
+}
+Staircase.prototype.isAdversarial = function() {
+    return this.adversarial;
+}
+Staircase.prototype.getAdvStrength = function() {
+    return this.advStrength;
+}
+Staircase.prototype.getTrialCounter = function() {
+    return this.trialCounter;
+}
+
 
 function BlockController(options)
 {
@@ -79,20 +137,32 @@ function BlockController(options)
     }
     this.engagementResults = { correct: 0, total: 0 };
 
-    // deal with adversarial trials
-    this.adversarialTrials = [];
-    this.advCount = TRAINING ? 0 : Math.floor(ADVERSARIAL_RATIO * this.trialCount);
-    for (var i=0; i<this.trialCount; i++) {
-        this.adversarialTrials.push(i<this.advCount ? 1 : 0);
+    // deal with different staircases
+    var staircaseCount = TRAINING ? 1 : STAIRCASE_COUNT;
+    this.staircases = [];
+    for (var i=0; i<staircaseCount; i++) {
+        this.staircases.push(new Staircase(this.mode, i));
     }
 
-    // shuffle the position of adversarial trials
-    shuffle(this.adversarialTrials);
+    var trialPerStaircase = Math.floor(this.trialCount / staircaseCount);
+    var remainder = this.trialCount % staircaseCount;
 
-    // ensure that first trial is not adversarial
-    while (this.adversarialTrials[0] == 1) {
-        this.adversarialTrials.shift();
-        this.adversarialTrials.push(1);
+    this.staircaseSequence = [];
+    for (let s = 0; s < staircaseCount; s++) {
+        let reps = trialPerStaircase + (s < remainder ? 1 : 0);
+        for (let i = 0; i < reps; i++) {
+            this.staircaseSequence.push(s);
+        }
+    }
+
+
+    // shuffle the position of staircases
+    shuffle(this.staircaseSequence);
+
+    // ensure that first trial is not adversarial (i.e., should be staircase 0)
+    while (this.staircaseSequence[0] != 0) {
+        var d = this.staircaseSequence.shift();
+        this.staircaseSequence.push(d);
     }
 
     // User-defined callback when a placeholder is clicked
@@ -100,11 +170,6 @@ function BlockController(options)
         console.warn("No onSelect handler defined. Selected:", selectedIndex);
     };
 
-    this.delta = this.initialDelta;
-    this.deltaAdversarial = this.initialDelta;
-
-    this.reversals = 0;
-    this.lastDirection = null;
 
     this.stimPair = new StimulusPair(this.classNum);
     this.generateTrial();
@@ -152,31 +217,40 @@ BlockController.prototype.generateTrial = function()
 
     var currentIndex = this.data.length;
     var isEngagementTrial = false;
-    var isAdversarial = false;
+    var staircaseNum = null;
+    var staircase = null;
+    console.log("data len: " + this.data.length);
 
     if (this.engagementIndices.length > 0 && this.engagementIndices[0] === currentIndex) {
         isEngagementTrial = true;
         this.engagementIndices.shift(); // remove it so it's not reused
     }
     else {
-        // look up whether this trial is adversarial
-        isAdversarial = this.adversarialTrials[this.data.length];
+        // look up which staircase is for
+        staircaseNum = this.staircaseSequence[this.data.length];
+        staircase = this.staircases[staircaseNum];
     }
 
-    var delta;
+    var delta, isAdversarial = false, advStrength = 0;
     if (isEngagementTrial || this.data.length == 0) {
         delta = ENGAGEMENT_DELTA[this.mode];
     }
-    else if (isAdversarial) {
-        delta = this.deltaAdversarial;
-    }
     else {
-        delta = this.delta;
+        delta = staircase.getCurrentDelta();
+        isAdversarial = staircase.isAdversarial();
+        advStrength = staircase.getAdvStrength();
     }
-    var primary= this.mode;
+
+    var primary = this.mode;
     var secondary = SECONDARY_STAT[this.mode];
 
-    this.stimPair.optimizeEnter(primary, secondary, delta, isAdversarial);
+    // perform optimization and obtain stimulus
+    this.stimPair.optimizeEnter(
+        primary, secondary, delta,
+        isAdversarial, advStrength
+    );
+
+    // mark correct one
     if (this.stimPair.stim1[primary] > this.stimPair.stim2[primary]) {
         this.correct = 1;
     }
@@ -186,7 +260,8 @@ BlockController.prototype.generateTrial = function()
     actualDelta = Math.abs(this.stimPair.stim1[primary]-this.stimPair.stim2[primary]);
     actualSecondaryDelta = Math.abs(this.stimPair.stim1[secondary]-this.stimPair.stim2[secondary]);
 
-    this.curTrial = {
+    this.curTrial =
+    {
         classNum: this.classNum,
         mode: this.mode,
         requestedDelta: delta,
@@ -194,11 +269,13 @@ BlockController.prototype.generateTrial = function()
         deltaSecondary: actualSecondaryDelta,
         correct: undefined,
         seqNum: this.data.length+1,
-        trialNum: (isAdversarial ? this.trialsAdvCounter : this.trialsCounter) + 1,
+        trialNum: isEngagementTrial ? 0 : staircase.getTrialCounter() + 1,
         adversarial: isAdversarial ? 1 : 0,
+        advStrength: advStrength,
         generationTime: Date.now() - generationTime,
         isEngagement: isEngagementTrial,
         fixationTime: FIXATION_TIME,
+        staircaseNum: staircaseNum,
 
         // include statistics and raw data
         mean1: this.stimPair.stim1.mean,
@@ -316,45 +393,13 @@ BlockController.prototype.nextTrial = function(isCorrect)
         this.onTrialEnd();
     }
 
-    const isAdversarial = this.curTrial.adversarial;
-    const oldDelta = isAdversarial ? this.deltaAdversarial : this.delta;
-    var newDelta;
+    var staircaseNum = this.curTrial.staircaseNum;
 
     let direction;
     if (!this.curTrial.isEngagement)
     {
-        // go up/down the staircase
-        if (isCorrect)
-        {
-            // one down
-            newDelta = Math.max(this.minDelta, oldDelta - this.stepSize);
-            direction = 'down';
-            console.log('down');
-        } else
-        {
-            // two up
-            newDelta = Math.min(this.maxDelta, oldDelta + 2 * this.stepSize);
-            direction = 'up';
-            console.log('up');
-        }
-        if (isAdversarial) {
-            this.deltaAdversarial = newDelta;
-            this.trialsAdvCounter++;
-            console.log('counter Adv: ' + this.trialsAdvCounter)
-        }
-        else {
-            this.delta = newDelta;
-            this.trialsCounter++;
-            console.log('counter: ' + this.trialsCounter)
-
-        }
-
-        if (this.lastDirection && direction !== this.lastDirection) {
-            this.reversals++;
-        }
-        this.lastDirection = direction;
+        this.staircases[staircaseNum].advance(isCorrect);
     }
-
 
     // play sound
     if (SOUND_FEEDBACK) {
@@ -523,7 +568,13 @@ BlockController.prototype.recordSelection = function()
             if (isCorrect) this.engagementResults.correct++;
             this.engagementResults.total++;
         } else {
-            this.data.push(this.curTrial);
+            // if training, only record if correct
+            if (TRAINING && !isCorrect) {
+                // don't record
+            }
+            else {
+                this.data.push(this.curTrial);
+            }
         }
 
         this.selected = undefined;
@@ -729,7 +780,7 @@ ExperimentControl.prototype.getEngagementSummary = function()
         correct: eng.correct,
         accuracy: eng.total > 0
             ? this.totalEngagement.correct / this.totalEngagement.total
-            : null
+            : 1
     };
 }
 
@@ -747,4 +798,28 @@ function shuffle(array) {
 		array[j] = temp;
 	}
 	return array;   // returns the same reference for convenience
+}
+
+function printDeltas(staircase) {
+    var data = exp.data;
+    for (var i=0; i<data.length; i++) {
+        var d = data[i];
+        if (staircase===undefined || staircase==d.staircaseNum) {
+            console.log("[" + d.correct + ']: delta: ' + d.requestedDelta + ", adv: " + d.adversarial + ', advStrength: ' + d.advStrength);
+        }
+    }
+}
+
+function countSeq(arr, accessor)
+{
+    var map = {};
+    for (var i=0; i<arr.length; i++) {
+        var d = accessor ? accessor(arr[i]) : arr[i];
+        if (map[d]===undefined) {
+            map[d] = 1;
+        } else {
+            map[d]++;
+        }
+    }
+    return map;
 }
