@@ -480,42 +480,6 @@ function kmeans2_1d(values, iters=20)
 
 var OBJECTIVE_FUNCS =
 {
-    /*
-    adv_std: function(s1, s2) {
-
-        // this corresponds to the difference between 0.8 (small) and 1.2 (large) separation
-        const ADVERSARIAL_STD_TARGET = Math.log2( 1.5 );
-
-        var kmeans1 = kmeans2_1d(s1.data);
-        var kmeans2 = kmeans2_1d(s2.data);
-
-        var sep1 = kmeans1.sep;
-        var sep2 = kmeans2.sep;
-
-        // interpreting the separation:
-        //    < 0.8 small;
-        //    0.8–1.2 moderate;
-        //    >1.2 viewers will likely see two clusters when allowed to inspect -> adversarial
-
-        // difference in separation
-        var sepRatio;
-        if (s1.std > s2.std) {
-            sepRatio = sep2 / sep1;
-        }
-        else {
-            sepRatio = sep1 / sep2;
-        }
-
-        s1.adv_std = sep1;
-        s2.adv_std = sep2;
-
-        return Math.abs(
-            Math.log2(sepRatio) -
-            ADVERSARIAL_STD_TARGET
-        );
-
-    },
-    */
 
     adv_slope: function(s1, s2)
     {
