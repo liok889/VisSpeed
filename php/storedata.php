@@ -30,15 +30,25 @@ foreach ($json_obj->experimentalData as $row) {
     $visType = mysqli_real_escape_string($conn, $row->visType);
     $mode = mysqli_real_escape_string($conn, $row->mode);
 
+    $staircaseNum = isset($row->staircaseNum)
+        ? intval($row->staircaseNum)
+        : "NULL";
+
+    $advStrength = isset($row->advStrength)
+        ? floatval($row->advStrength)
+        : "NULL";
+
 
     $insert[] = "(" .
         $userid . ", " .
         intval($row->blockNum) . ", " .
         intval($row->seqNum) . ", " .
         intval($row->trialNum) . ", " .
+        $staircaseNum . ", " .
         intval($row->classNum) . ", " .
         intval($row->correct) . ", " .
         intval($row->adversarial) . ", " .
+        $advStrength . ", " .
         "'" . $selection . "', " .
         "'" . $visType . "', " .
         "'" . $mode . "', " .
@@ -60,7 +70,7 @@ foreach ($json_obj->experimentalData as $row) {
 }
 
 $sql = "INSERT INTO response
-(userid, blockNum, seqNum, trialNum, classNum, correct, adversarial, selection, visType, mode, delta, deltaSecondary, requestedDelta, exposureTime, fixationTime, generationTime, responseTime, mean1, mean2, std1, std2, adv1, adv2, parameters)
+(userid, blockNum, seqNum, trialNum, staircaseNum, classNum, correct, adversarial, advStrength, selection, visType, mode, delta, deltaSecondary, requestedDelta, exposureTime, fixationTime, generationTime, responseTime, mean1, mean2, std1, std2, adv1, adv2, parameters)
 VALUES " . implode(',', $insert);
 
 if (!isset($_SESSION['datastored']) && mysqli_query($conn, $sql))

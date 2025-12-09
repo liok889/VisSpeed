@@ -27,7 +27,7 @@ $rowcount=mysqli_num_rows($result);
 
 mysqli_free_result($result);
 
-if ($rowcount > 0) 
+if ($rowcount > 0)
 {
 	mysqli_close($conn);
 	$_SESSION['error'] = 'user';
@@ -39,9 +39,9 @@ else
 	unset($_SESSION['error']);
 	$expcondition = mysqli_real_escape_string($conn, $_SESSION['expcondition']);
 	$seq = intval($_SESSION['seq']);
-	$sql = "INSERT INTO user (mturkid, expcondition, seq) VALUES ('" . mysqli_real_escape_string($conn, $id) . "', '" . $expcondition . "', " . $seq . ")";
+	$sql = "INSERT INTO user (experiment, mturkid, expcondition, seq) VALUES (2, '" . mysqli_real_escape_string($conn, $id) . "', '" . $expcondition . "', " . $seq . ")";
 
-	if (mysqli_query($conn, $sql)) 
+	if (mysqli_query($conn, $sql))
 	{
 		$last_id = mysqli_insert_id($conn);
 		$_SESSION['user'] = $last_id;
