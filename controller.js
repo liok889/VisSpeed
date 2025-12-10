@@ -231,7 +231,8 @@ BlockController.prototype.generateTrial = function()
     }
 
     var delta, isAdversarial = false, advStrength = 0;
-    if (isEngagementTrial || this.data.length == 0) {
+    //if (isEngagementTrial || this.data.length == 0) {
+    if (isEngagementTrial) {
         delta = ENGAGEMENT_DELTA[this.mode];
     }
     else {
