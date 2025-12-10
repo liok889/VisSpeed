@@ -153,25 +153,39 @@
             STATISTIC = 'mean';
         }
 
-        // latin square
+        // latin square for 3 visTypes
+        /*
         const ORDERING = [
             ['A', 'B', 'C'],
-            //['A', 'C', 'B'],
-            //['B', 'A', 'C'],
             ['B', 'C', 'A'],
             ['C', 'A', 'B'],
-            //['C', 'B', 'A']
         ];
+        */
+
+        // experiment 2: only two visTypes (bar and dots)
+        const ORDERING = [
+            ['A', 'B'],
+            ['B', 'A'],
+        ];
+
         const VIS_MAP = {
             A: VisType.VIS_DOTS,
             B: VisType.VIS_BARS,
             C: VisType.VIS_AREA
         };
 
+        /*
         const BLOCK_SEED = [
             { trialCount: 45, classNum: 20, exposureTime: 500 },
             { trialCount: 45, classNum: 20, exposureTime: 1500},
             { trialCount: 45, classNum: 20, exposureTime: 4000}
+        ];
+        */
+
+        // experiment 2
+        const BLOCK_SEED = [
+            { trialCount: 96, classNum: 20, exposureTime: 250 },
+            { trialCount: 96, classNum: 20, exposureTime: 500 },
         ];
 
         // Define block configurations
@@ -226,9 +240,11 @@
 
         // configuration for training
         var trainingConfigs = [
-            { mode: STATISTIC, classNum: 20, visType: VisType.VIS_BARS, trialCount: 6, exposureTime: 1500 },
-            { mode: STATISTIC, classNum: 20, visType: VisType.VIS_DOTS, trialCount: 6, exposureTime: 1500 },
-            { mode: STATISTIC, classNum: 20, visType: VisType.VIS_AREA, trialCount: 6, exposureTime: 1500 },
+            { mode: STATISTIC, classNum: 20, visType: VisType.VIS_BARS, trialCount: 8, exposureTime: 500 },
+            { mode: STATISTIC, classNum: 20, visType: VisType.VIS_DOTS, trialCount: 8, exposureTime: 500 },
+
+            // experiment 2 does not include area
+            //{ mode: STATISTIC, classNum: 20, visType: VisType.VIS_AREA, trialCount: 6, exposureTime: 1500 },
         ];
 
         // URLS
@@ -244,7 +260,7 @@
 
         // number of engagement checks per block
         var ENGAGEMENT_PER_BLOCK = 0;
-        var BREAK_INTERVAL = 2;
+        var BREAK_INTERVAL = 1; // experiment 1: 2
 
         // practice
         TRAINING = urlParams.get('training');

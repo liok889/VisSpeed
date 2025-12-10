@@ -28,7 +28,7 @@ const STAIRCASE = {
     std: {initialDelta: 0.15, stepSize: 0.0125, minDelta: 0.00001, maxDelta: 0.5},
     slope: {initialDelta: 0.4, stepSize: 0.025, minDelta: 0.00001, maxDelta: 1.0},
     0: { adversarial: true, advStrength: 1 },
-    1: { adversarial: true, advStrength: 1.5 },
+    1: { adversarial: true, advStrength: 1.65 },
     2: { adversarial: true, advStrength: 2.3 }
 };
 var STAIRCASE_COUNT = 3;

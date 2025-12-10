@@ -483,7 +483,7 @@ var OBJECTIVE_FUNCS =
 
     adv_slope: function(s1, s2, advStrength)
     {
-        const ADVERSARIAL_SLOPE_TARGET = advStrength ? Math.log2(advStrength) : Math.log2(2);;
+        const ADVERSARIAL_SLOPE_TARGET = advStrength ? Math.log2(advStrength) : Math.log2(2);
 
         function localReversal(data, slope) {
             const n = data.length;
